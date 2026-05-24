@@ -1,27 +1,155 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado-pagina">
-    <p class="etiqueta">Suscripciones</p>
-    <h1>Consumo por planes</h1>
-    <p>
-      Compara qué planes concentran mayor actividad y tiempo de visualización.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Suscripciones"
+    titulo="Consumo por planes"
+    descripcion="Compara qué planes de suscripción concentran mayor actividad y tiempo de visualización."
+  ></app-section-header>
 
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>Planes de suscripción</ion-card-title>
-    </ion-card-header>
+  <div class="acciones">
+    <ion-button size="small" (click)="cargarPlanes()">
+      Actualizar
+    </ion-button>
+  </div>
 
-    <ion-card-content>
-      <p>
-        Aquí se mostrarán los planes ordenados por visualizaciones y horas vistas.
-      </p>
+  <div *ngIf="cargando()" class="estado">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando análisis de planes...</p>
+  </div>
 
-      <ion-button size="small" fill="outline">
-        Ver consumo por plan
-      </ion-button>
-    </ion-card-content>
-  </ion-card>
+  <ion-text color="danger" *ngIf="error()">
+    <p class="mensaje-error">{{ error() }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="resumen() as datos">
+    <section class="resumen-grid">
+      <app-kpi-card
+        *ngIf="obtenerPlanLider() as plan"
+        titulo="Plan líder"
+        [valor]="plan.nombre"
+        [detalle]="formatearNumero(plan.visualizaciones) + ' visualizaciones · ' + formatearDecimal(plan.horasVistas) + ' horas'"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Visualizaciones analizadas"
+        [valor]="formatearNumero(totalVisualizaciones())"
+        detalle="Total acumulado de consumo por planes"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Horas vistas"
+        [valor]="formatearDecimal(totalHorasVistas())"
+        detalle="Tiempo total de visualización agrupado por plan"
+        variante="normal"
+      ></app-kpi-card>
+    </section>
+
+    <app-insight-card
+      titulo="Lectura ejecutiva"
+      [descripcion]="obtenerLecturaEjecutiva()"
+      nivel="informativo"
+    ></app-insight-card>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Ranking de planes por consumo</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Comparación de los planes de suscripción según visualizaciones, horas vistas y participación dentro del consumo total.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let plan of datos.planes; let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="primary">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ plan.nombre }}</h2>
+                <strong>{{ obtenerPorcentajeVisualizaciones(plan) }}%</strong>
+              </div>
+
+              <div class="barra-progreso">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarra(plan)"
+                ></div>
+              </div>
+
+              <p>
+                {{ formatearNumero(plan.visualizaciones) }} visualizaciones ·
+                {{ formatearDecimal(plan.horasVistas) }} horas vistas
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <section class="graficas-grid">
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Distribución por plan</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Participación de cada plan dentro del consumo total medido por visualizaciones.
+          </p>
+
+          <div class="chart-wrapper dona">
+            <canvas
+              baseChart
+              [type]="'doughnut'"
+              [data]="datosGraficaDona()"
+              [options]="opcionesDona"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Comparativa por plan</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Cambia la métrica para comparar visualizaciones u horas vistas por plan de suscripción.
+          </p>
+
+          <ion-segment
+            [value]="metricaGrafica()"
+            (ionChange)="actualizarMetrica($event.detail.value)"
+          >
+            <ion-segment-button value="visualizaciones">
+              <ion-label>Visualizaciones</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="horasVistas">
+              <ion-label>Horas vistas</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+
+          <div class="chart-wrapper barras">
+            <canvas
+              baseChart
+              [type]="'bar'"
+              [data]="datosGraficaBarras()"
+              [options]="opcionesBarras"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+  </ng-container>
 </ion-content>
