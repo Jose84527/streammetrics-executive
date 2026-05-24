@@ -1,0 +1,10 @@
+<ion-card class="kpi-card" [ngClass]="variante">
+  <ion-card-header>
+    <ion-card-title>{{ titulo }}</ion-card-title>
+  </ion-card-header>
+
+  <ion-card-content>
+    <p class="valor">{{ valor }}</p>
+    <p class="detalle" *ngIf="detalle">{{ detalle }}</p>
+  </ion-card-content>
+</ion-card>

@@ -1,43 +1,190 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado-pagina">
-    <p class="etiqueta">Análisis de consumo</p>
-    <h1>Consumo por géneros</h1>
-    <p>
-      Visualiza qué géneros concentran más reproducciones y horas vistas dentro de la plataforma.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Análisis de consumo"
+    titulo="Consumo por géneros"
+    descripcion="Identifica qué géneros concentran más reproducciones y horas vistas dentro de la plataforma."
+  ></app-section-header>
 
-  <ion-grid>
-    <ion-row>
-      <ion-col size="12" size-md="6">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Géneros por visualizaciones</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>
-              Aquí se mostrará el ranking de géneros con mayor cantidad de visualizaciones.
-            </p>
-            <ion-button size="small" fill="outline">Ver análisis</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
+  <div class="acciones">
+    <ion-button size="small" (click)="cargarConsumo()">
+      Actualizar
+    </ion-button>
+  </div>
 
-      <ion-col size="12" size-md="6">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Géneros por horas vistas</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>
-              Aquí se mostrará qué géneros generan mayor tiempo de consumo.
-            </p>
-            <ion-button size="small" fill="outline">Ver análisis</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <div *ngIf="cargando()" class="estado">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando análisis de consumo...</p>
+  </div>
+
+  <ion-text color="danger" *ngIf="error()">
+    <p class="mensaje-error">{{ error() }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="resumen()">
+    <ion-grid>
+      <ion-row>
+        <ion-col size="12" size-md="6" *ngIf="obtenerPrimerGeneroGeneral() as genero">
+          <app-kpi-card
+            titulo="Género líder ejecutivo"
+            [valor]="genero.nombre"
+            [detalle]="formatearNumero(genero.visualizaciones) + ' visualizaciones · ' + formatearDecimal(genero.horasVistas) + ' horas'"
+            variante="positivo"
+          ></app-kpi-card>
+        </ion-col>
+
+        <ion-col size="12" size-md="6" *ngIf="topCincoGeneral().length > 0">
+          <app-kpi-card
+            titulo="Géneros analizados"
+            [valor]="topCincoGeneral().length"
+            detalle="Top 5 por índice combinado de visualizaciones y horas vistas"
+            variante="normal"
+          ></app-kpi-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+
+    <app-insight-card
+      titulo="Lectura ejecutiva"
+      [descripcion]="obtenerLecturaEjecutiva()"
+      nivel="informativo"
+    ></app-insight-card>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Top 5 general de géneros</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Ranking calculado con un índice combinado de visualizaciones y horas vistas para resumir el desempeño general.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let genero of topCincoGeneral(); let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="primary">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ genero.nombre }}</h2>
+                <strong>{{ formatearDecimal(genero.indiceEjecutivo) }}</strong>
+              </div>
+
+              <div class="barra-progreso">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="genero.indiceEjecutivo"
+                ></div>
+              </div>
+
+              <p>
+                {{ formatearNumero(genero.visualizaciones) }} visualizaciones ·
+                {{ formatearDecimal(genero.horasVistas) }} horas vistas
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-grid>
+      <ion-row>
+        <ion-col size="12" size-lg="5">
+          <ion-card class="chart-card">
+            <ion-card-header>
+              <ion-card-title>Participación general de consumo</ion-card-title>
+            </ion-card-header>
+
+            <ion-card-content>
+              <p class="descripcion-bloque">
+                Distribución del Top 5 de géneros frente al resto del catálogo agrupado como “Otros”.
+              </p>
+
+              <div class="chart-wrapper dona">
+                <canvas
+                  baseChart
+                  [type]="'doughnut'"
+                  [data]="datosGraficaDona()"
+                  [options]="opcionesDona"
+                ></canvas>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <ion-col size="12" size-lg="7">
+          <ion-card class="chart-card">
+            <ion-card-header>
+              <ion-card-title>Comparativa interactiva</ion-card-title>
+            </ion-card-header>
+
+            <ion-card-content>
+              <p class="descripcion-bloque">
+                Selecciona uno o varios géneros para comparar visualizaciones u horas vistas.
+              </p>
+
+              <ion-segment
+                [value]="metricaGrafica()"
+                (ionChange)="actualizarMetrica($event.detail.value)"
+              >
+                <ion-segment-button value="visualizaciones">
+                  <ion-label>Visualizaciones</ion-label>
+                </ion-segment-button>
+
+                <ion-segment-button value="horasVistas">
+                  <ion-label>Horas vistas</ion-label>
+                </ion-segment-button>
+              </ion-segment>
+
+              <ion-select
+                label="Géneros"
+                label-placement="stacked"
+                interface="popover"
+                multiple="true"
+                [value]="generosSeleccionados()"
+                (ionChange)="actualizarSeleccionGeneros($event.detail.value)"
+              >
+                <ion-select-option
+                  *ngFor="let genero of resumen()?.generosPorVisualizaciones"
+                  [value]="genero.nombre"
+                >
+                  {{ genero.nombre }}
+                </ion-select-option>
+              </ion-select>
+
+              <div class="chips-seleccion">
+                <ion-chip
+                  *ngFor="let genero of generosSeleccionados()"
+                  color="primary"
+                >
+                  {{ genero }}
+                </ion-chip>
+              </div>
+
+              <div class="acciones-grafica">
+                <ion-button size="small" fill="outline" (click)="restablecerTopCinco()">
+                  Restablecer Top 5
+                </ion-button>
+              </div>
+
+              <div class="chart-wrapper barras">
+                <canvas
+                  baseChart
+                  [type]="'bar'"
+                  [data]="datosGraficaBarras()"
+                  [options]="opcionesBarras"
+                ></canvas>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-container>
 </ion-content>

@@ -12,6 +12,8 @@ import {
   provideIonicAngular
 } from '@ionic/angular/standalone';
 
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
+
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -22,6 +24,7 @@ export const appConfig: ApplicationConfig = {
     },
     provideIonicAngular(),
     provideHttpClient(),
+    provideCharts(withDefaultRegisterables()),
     provideRouter(routes, withPreloading(PreloadAllModules))
   ]
 };

@@ -1,0 +1,38 @@
+.kpi-card {
+  height: 100%;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border-left: 5px solid var(--ion-color-primary);
+
+  ion-card-title {
+    font-size: 0.95rem;
+    color: var(--ion-color-medium);
+    font-weight: 700;
+  }
+
+  .valor {
+    margin: 0;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: var(--ion-text-color);
+  }
+
+  .detalle {
+    margin: 0.35rem 0 0;
+    color: var(--ion-color-medium);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+}
+
+.kpi-card.positivo {
+  border-left-color: var(--ion-color-success);
+}
+
+.kpi-card.advertencia {
+  border-left-color: var(--ion-color-warning);
+}
+
+.kpi-card.riesgo {
+  border-left-color: var(--ion-color-danger);
+}
