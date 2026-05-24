@@ -1,43 +1,245 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado-pagina">
-    <p class="etiqueta">Objetivos de negocio</p>
-    <h1>Cumplimiento de metas</h1>
-    <p>
-      Compara los resultados reales contra los objetivos esperados por mercado.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Objetivos de negocio"
+    titulo="Cumplimiento de metas"
+    descripcion="Compara los resultados reales contra los objetivos esperados por mercado para detectar brechas estratégicas."
+  ></app-section-header>
 
-  <ion-grid>
-    <ion-row>
-      <ion-col size="12" size-md="6">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Visualizaciones reales vs meta</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>
-              Aquí se mostrará el cumplimiento de visualizaciones por país.
-            </p>
-            <ion-button size="small" fill="outline">Ver brechas</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
+  <div class="acciones">
+    <ion-button size="small" (click)="cargarMetas()">
+      Actualizar
+    </ion-button>
+  </div>
 
-      <ion-col size="12" size-md="6">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Horas vistas reales vs meta</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>
-              Aquí se analizará el cumplimiento de horas vistas frente a la meta.
-            </p>
-            <ion-button size="small" fill="outline">Ver cumplimiento</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <div *ngIf="cargando()" class="estado">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando cumplimiento de metas...</p>
+  </div>
+
+  <ion-text color="danger" *ngIf="error()">
+    <p class="mensaje-error">{{ error() }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="resumen() as datos">
+    <section class="resumen-grid">
+      <app-kpi-card
+        *ngIf="obtenerMercadoCritico() as mercado"
+        titulo="Mercado crítico"
+        [valor]="mercado.pais"
+        [detalle]="formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) + '% de cumplimiento en visualizaciones'"
+        variante="riesgo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        *ngIf="obtenerMejorMercado() as mercado"
+        titulo="Mejor cumplimiento"
+        [valor]="mercado.pais"
+        [detalle]="formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) + '% de cumplimiento en visualizaciones'"
+        [variante]="obtenerVarianteEstado(mercado.estado)"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Mercados en bajo cumplimiento"
+        [valor]="mercadosBajo()"
+        detalle="Países clasificados con estado BAJO"
+        variante="riesgo"
+      ></app-kpi-card>
+    </section>
+
+    <section class="estado-grid">
+      <app-kpi-card
+        titulo="Cumplimiento alto"
+        [valor]="mercadosAlto()"
+        detalle="Mercados con desempeño favorable"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Cumplimiento medio"
+        [valor]="mercadosMedio()"
+        detalle="Mercados que requieren seguimiento"
+        variante="advertencia"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Cumplimiento bajo"
+        [valor]="mercadosBajo()"
+        detalle="Mercados con brecha significativa"
+        variante="riesgo"
+      ></app-kpi-card>
+    </section>
+
+    <app-insight-card
+      titulo="Lectura ejecutiva"
+      [descripcion]="obtenerLecturaEjecutiva()"
+      nivel="advertencia"
+    ></app-insight-card>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Mercados con mayor brecha</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Ranking de países ordenados desde el menor cumplimiento hacia el mayor. Esta vista ayuda a priorizar acciones comerciales.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let pais of topPaisesCriticos(); let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" [color]="obtenerColorEstado(pais.estado)">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ pais.pais }}</h2>
+                <strong>{{ formatearDecimal(pais.porcentajeCumplimientoVisualizaciones) }}%</strong>
+              </div>
+
+              <div class="barra-progreso" [class]="pais.estado.toLowerCase()">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarra(pais)"
+                ></div>
+              </div>
+
+              <p>
+                {{ formatearNumero(pais.visualizacionesReales) }} reales vs
+                {{ formatearNumero(pais.metaVisualizaciones) }} meta ·
+                Estado {{ pais.estado }}
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <section class="graficas-grid">
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Distribución por estado</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Distribución de mercados según su nivel de cumplimiento frente a las metas.
+          </p>
+
+          <div class="chart-wrapper dona">
+            <canvas
+              baseChart
+              [type]="'doughnut'"
+              [data]="datosGraficaEstados()"
+              [options]="opcionesDona"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Real vs meta por país</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Selecciona uno o varios países para comparar el resultado real contra la meta establecida.
+          </p>
+
+          <ion-segment
+            [value]="metricaGrafica()"
+            (ionChange)="actualizarMetrica($event.detail.value)"
+          >
+            <ion-segment-button value="visualizaciones">
+              <ion-label>Visualizaciones</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="horas">
+              <ion-label>Horas vistas</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+
+          <ion-select
+            label="Países"
+            label-placement="stacked"
+            interface="popover"
+            multiple="true"
+            [value]="paisesSeleccionados()"
+            (ionChange)="actualizarSeleccionPaises($event.detail.value)"
+          >
+            <ion-select-option
+              *ngFor="let pais of datos.cumplimientoPorPais"
+              [value]="pais.pais"
+            >
+              {{ pais.pais }}
+            </ion-select-option>
+          </ion-select>
+
+          <div class="chips-seleccion">
+            <ion-chip
+              *ngFor="let pais of paisesSeleccionados()"
+              color="primary"
+            >
+              {{ pais }}
+            </ion-chip>
+          </div>
+
+          <div class="acciones-grafica">
+            <ion-button size="small" fill="outline" (click)="restablecerMercadosCriticos()">
+              Restablecer críticos
+            </ion-button>
+          </div>
+
+          <div class="chart-wrapper barras">
+            <canvas
+              baseChart
+              [type]="'bar'"
+              [data]="datosGraficaComparativa()"
+              [options]="opcionesBarras"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Resumen completo por país</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Vista resumida de todos los mercados con metas cargadas en el análisis.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let pais of paisesOrdenadosPorCumplimiento()"
+            class="ranking-item compacto"
+          >
+            <ion-badge slot="start" [color]="obtenerColorEstado(pais.estado)">
+              {{ pais.estado }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ pais.pais }}</h2>
+                <strong>{{ formatearDecimal(pais.porcentajeCumplimientoVisualizaciones) }}%</strong>
+              </div>
+
+              <p>
+                Horas: {{ formatearDecimal(pais.porcentajeCumplimientoHoras) }}%
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </ng-container>
 </ion-content>
