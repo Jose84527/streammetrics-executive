@@ -1,5 +1,6 @@
 package com.jose.streammetrics.service;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.jose.streammetrics.dto.ResumenCumplimientoMetasDto;
@@ -14,6 +15,7 @@ public class MetaService {
         this.metaRepository = metaRepository;
     }
 
+    @Cacheable("metasCumplimiento")
     public ResumenCumplimientoMetasDto obtenerCumplimientoMetas() {
         return new ResumenCumplimientoMetasDto(
                 metaRepository.obtenerCumplimientoPorPais()

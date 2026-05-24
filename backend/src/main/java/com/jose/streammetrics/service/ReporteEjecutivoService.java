@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.jose.streammetrics.dto.ActividadPerfilDto;
@@ -36,6 +37,7 @@ public class ReporteEjecutivoService {
         this.contenidoService = contenidoService;
     }
 
+    @Cacheable("reporteEjecutivoResumen")
     public ResumenReporteEjecutivoDto obtenerResumenReporteEjecutivo() {
         ResumenDashboardDto resumenDashboard = dashboardService.obtenerResumenDashboard();
         ResumenCumplimientoMetasDto resumenMetas = metaService.obtenerCumplimientoMetas();

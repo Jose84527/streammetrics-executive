@@ -1,5 +1,6 @@
 package com.jose.streammetrics.service;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.jose.streammetrics.dto.ResumenDesempenoContenidosDto;
@@ -14,6 +15,7 @@ public class ContenidoService {
         this.contenidoRepository = contenidoRepository;
     }
 
+    @Cacheable("contenidosDesempeno")
     public ResumenDesempenoContenidosDto obtenerDesempenoContenidos() {
         return new ResumenDesempenoContenidosDto(
                 contenidoRepository.obtenerContenidosMasVistos(),

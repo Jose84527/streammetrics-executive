@@ -1,5 +1,6 @@
 package com.jose.streammetrics.service;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.jose.streammetrics.dto.ResumenMercadosDto;
@@ -14,6 +15,7 @@ public class MercadoService {
         this.mercadoRepository = mercadoRepository;
     }
 
+    @Cacheable("mercadosConsumo")
     public ResumenMercadosDto obtenerResumenMercados() {
         return new ResumenMercadosDto(
                 mercadoRepository.obtenerTopPaisesPorConsumo(),

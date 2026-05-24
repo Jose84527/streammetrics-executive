@@ -1,5 +1,6 @@
 package com.jose.streammetrics.service;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.jose.streammetrics.dto.ResumenDashboardDto;
@@ -14,6 +15,7 @@ public class DashboardService {
         this.dashboardRepository = dashboardRepository;
     }
 
+    @Cacheable("dashboardResumen")
     public ResumenDashboardDto obtenerResumenDashboard() {
         return new ResumenDashboardDto(
                 dashboardRepository.obtenerTotalVisualizaciones(),
