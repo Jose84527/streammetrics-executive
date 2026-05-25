@@ -1,29 +1,75 @@
-.encabezado-pagina {
-  margin-bottom: 1.25rem;
-
-  .etiqueta {
-    margin: 0 0 0.35rem;
-    color: var(--ion-color-primary);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.78rem;
-    letter-spacing: 0.04rem;
-  }
-
-  h1 {
-    margin: 0 0 0.5rem;
-    font-size: 1.6rem;
-    font-weight: 700;
-  }
-
-  p {
-    margin: 0;
-    color: var(--ion-color-medium);
-    line-height: 1.45;
-  }
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
 }
 
-ion-card-content p {
+.estado {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: var(--ion-color-medium);
+}
+
+.mensaje-error {
+  margin: 1rem 0;
+}
+
+.resumen-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.reporte-card {
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.reporte-card.principal {
+  border-left: 5px solid var(--ion-color-primary);
+}
+
+.fecha-reporte {
+  margin: 0 0 0.75rem;
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+}
+
+.descripcion-bloque {
+  margin: 0 0 1rem;
   color: var(--ion-color-medium);
   line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+ion-list {
+  background: transparent;
+}
+
+.item-reporte {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 0.7rem;
+}
+
+ion-label h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+ion-label p {
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .resumen-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }

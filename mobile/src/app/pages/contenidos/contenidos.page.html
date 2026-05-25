@@ -1,51 +1,261 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado-pagina">
-    <p class="etiqueta">Catálogo</p>
-    <h1>Desempeño de contenidos</h1>
-    <p>
-      Evalúa películas y series según visualizaciones, horas vistas, calificación y finalización.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Catálogo"
+    titulo="Desempeño de contenidos"
+    descripcion="Evalúa películas y series según visualizaciones, horas vistas, calificación promedio y tasa de finalización."
+  ></app-section-header>
 
-  <ion-grid>
-    <ion-row>
-      <ion-col size="12" size-md="4">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Más vistos</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>Ranking de contenidos con mayor número de visualizaciones.</p>
-            <ion-button size="small" fill="outline">Ver ranking</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
+  <div class="acciones">
+    <ion-button size="small" (click)="cargarContenidos()">
+      Actualizar
+    </ion-button>
+  </div>
 
-      <ion-col size="12" size-md="4">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Mejor calificados</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>Contenidos con mejor calificación promedio y mayor valoración.</p>
-            <ion-button size="small" fill="outline">Ver calificaciones</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
+  <div *ngIf="cargando()" class="estado">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando desempeño de contenidos...</p>
+  </div>
 
-      <ion-col size="12" size-md="4">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-title>Mayor finalización</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <p>Contenidos con mejor tasa de finalización por parte de los perfiles.</p>
-            <ion-button size="small" fill="outline">Ver finalización</ion-button>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+  <ion-text color="danger" *ngIf="error()">
+    <p class="mensaje-error">{{ error() }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="resumen() as datos">
+    <section class="resumen-grid">
+      <app-kpi-card
+        *ngIf="obtenerContenidoMasVisto() as contenido"
+        titulo="Contenido más visto"
+        [valor]="contenido.titulo"
+        [detalle]="formatearNumero(contenido.visualizaciones) + ' visualizaciones · ' + formatearDecimal(contenido.horasVistas) + ' horas'"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        *ngIf="obtenerContenidoMejorCalificado() as contenido"
+        titulo="Mejor calificación"
+        [valor]="contenido.titulo"
+        [detalle]="formatearDecimal(contenido.calificacionPromedio) + ' promedio · ' + formatearNumero(contenido.totalValoraciones) + ' valoraciones'"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        *ngIf="obtenerContenidoMayorFinalizacion() as contenido"
+        titulo="Mayor finalización"
+        [valor]="contenido.titulo"
+        [detalle]="formatearDecimal(contenido.tasaFinalizacion) + '% de finalización'"
+        variante="positivo"
+      ></app-kpi-card>
+    </section>
+
+    <app-insight-card
+      titulo="Lectura ejecutiva"
+      [descripcion]="obtenerLecturaEjecutiva()"
+      nivel="informativo"
+    ></app-insight-card>
+
+    <section class="graficas-grid">
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Comparativa por métrica</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Cambia la métrica para identificar contenidos destacados por alcance, tiempo de consumo, calificación o finalización.
+          </p>
+
+          <ion-segment
+            [value]="metricaGrafica()"
+            (ionChange)="actualizarMetrica($event.detail.value)"
+          >
+            <ion-segment-button value="visualizaciones">
+              <ion-label>Vistas</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="horasVistas">
+              <ion-label>Horas</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="calificacionPromedio">
+              <ion-label>Calif.</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="tasaFinalizacion">
+              <ion-label>Final.</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+
+          <div class="chart-wrapper barras">
+            <canvas
+              baseChart
+              [type]="'bar'"
+              [data]="datosGraficaPrincipal()"
+              [options]="opcionesBarras"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Calidad y finalización</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Comparación entre calificación promedio y tasa de finalización normalizada para visualizar satisfacción y retención.
+          </p>
+
+          <div class="chart-wrapper barras">
+            <canvas
+              baseChart
+              [type]="'bar'"
+              [data]="datosGraficaCalidad()"
+              [options]="opcionesBarrasComparativas"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Contenidos más vistos</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Ranking de contenidos con mayor cantidad de visualizaciones. Útil para identificar títulos con mayor alcance.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let contenido of datos.contenidosMasVistos; let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="primary">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ contenido.titulo }}</h2>
+                <strong>{{ formatearNumero(contenido.visualizaciones) }}</strong>
+              </div>
+
+              <p class="subtitulo">
+                {{ contenido.tipoContenido }} · {{ formatearDecimal(contenido.horasVistas) }} horas vistas
+              </p>
+
+              <div class="barra-progreso">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarraVisualizaciones(contenido)"
+                ></div>
+              </div>
+
+              <p>
+                Calificación {{ formatearDecimal(contenido.calificacionPromedio) }} ·
+                Finalización {{ formatearDecimal(contenido.tasaFinalizacion) }}%
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Contenidos mejor calificados</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Ranking de títulos con mejor calificación promedio y suficiente volumen de visualizaciones.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let contenido of datos.contenidosMejorCalificados; let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="success">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ contenido.titulo }}</h2>
+                <strong>{{ formatearDecimal(contenido.calificacionPromedio) }}</strong>
+              </div>
+
+              <p class="subtitulo">
+                {{ contenido.tipoContenido }} · {{ formatearNumero(contenido.totalValoraciones) }} valoraciones
+              </p>
+
+              <div class="barra-progreso positivo">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarraCalificacion(contenido)"
+                ></div>
+              </div>
+
+              <p>
+                {{ formatearNumero(contenido.visualizaciones) }} visualizaciones ·
+                {{ formatearDecimal(contenido.horasVistas) }} horas
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Contenidos con mayor finalización</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Ranking de contenidos que logran mayor proporción de reproducción completada.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let contenido of datos.contenidosMayorFinalizacion; let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="secondary">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ contenido.titulo }}</h2>
+                <strong>{{ formatearDecimal(contenido.tasaFinalizacion) }}%</strong>
+              </div>
+
+              <p class="subtitulo">
+                {{ contenido.tipoContenido }} · {{ formatearNumero(contenido.visualizaciones) }} visualizaciones
+              </p>
+
+              <div class="barra-progreso secundaria">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarraFinalizacion(contenido)"
+                ></div>
+              </div>
+
+              <p>
+                Calificación {{ formatearDecimal(contenido.calificacionPromedio) }} ·
+                {{ formatearDecimal(contenido.horasVistas) }} horas vistas
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </ng-container>
 </ion-content>

@@ -1,28 +1,183 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado-pagina">
-    <p class="etiqueta">Informe ejecutivo</p>
-    <h1>Reporte para toma de decisiones</h1>
-    <p>
-      Consulta los principales hallazgos, debilidades detectadas y recomendaciones estratégicas.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Informe ejecutivo"
+    titulo="Reporte para toma de decisiones"
+    descripcion="Consulta los principales hallazgos, debilidades detectadas y recomendaciones estratégicas generadas a partir de los KPIs."
+  ></app-section-header>
 
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>Resumen ejecutivo</ion-card-title>
-    </ion-card-header>
+  <div class="acciones">
+    <ion-button size="small" (click)="cargarReporte()">
+      Actualizar
+    </ion-button>
+  </div>
 
-    <ion-card-content>
-      <p>
-        Aquí se mostrará el resumen generado a partir de los KPIs principales,
-        junto con recomendaciones para la empresa simulada.
-      </p>
+  <div *ngIf="cargando()" class="estado">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando reporte ejecutivo...</p>
+  </div>
 
-      <ion-button size="small">
-        Generar reporte PDF
-      </ion-button>
-    </ion-card-content>
-  </ion-card>
+  <ion-text color="danger" *ngIf="error()">
+    <p class="mensaje-error">{{ error() }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="reporte() as datos">
+    <ion-card class="reporte-card principal">
+      <ion-card-header>
+        <ion-card-title>{{ datos.titulo }}</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="fecha-reporte">
+          Generado el {{ formatearFecha(datos.fechaGeneracion) }}
+        </p>
+
+        <p class="descripcion-bloque">
+          Este reporte resume el comportamiento general de la plataforma simulada
+          y presenta hallazgos orientados a la toma de decisiones.
+        </p>
+
+        <ion-button size="small" (click)="generarPdf()">
+          Generar PDF
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <section class="resumen-grid">
+      <app-kpi-card
+        titulo="Visualizaciones"
+        [valor]="formatearNumero(datos.resumenGeneral.totalVisualizaciones)"
+        detalle="Total acumulado de reproducciones analizadas"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Horas vistas"
+        [valor]="formatearDecimal(datos.resumenGeneral.totalHorasVistas)"
+        detalle="Tiempo total de consumo registrado"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Perfiles analizados"
+        [valor]="formatearNumero(datos.resumenGeneral.totalPerfilesAnalizados)"
+        detalle="Base de perfiles considerados en el análisis"
+        variante="normal"
+      ></app-kpi-card>
+    </section>
+
+    <section class="resumen-grid">
+      <app-kpi-card
+        titulo="Género dominante"
+        [valor]="datos.resumenGeneral.generoMasVisto"
+        detalle="Categoría con mayor consumo general"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Mercado principal"
+        [valor]="datos.resumenGeneral.paisMayorConsumo"
+        detalle="País con mayor actividad registrada"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Plan principal"
+        [valor]="datos.resumenGeneral.planMayorConsumo"
+        detalle="Plan de suscripción con mayor consumo"
+        variante="normal"
+      ></app-kpi-card>
+    </section>
+
+    <app-insight-card
+      titulo="Conclusión ejecutiva"
+      [descripcion]="obtenerConclusionEjecutiva()"
+      nivel="informativo"
+    ></app-insight-card>
+
+    <ion-card class="reporte-card" *ngIf="hayElementos(datos.hallazgosPrincipales)">
+      <ion-card-header>
+        <ion-card-title>Hallazgos principales</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Aspectos relevantes detectados en el comportamiento general de consumo.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let item of datos.hallazgosPrincipales"
+            class="item-reporte"
+          >
+            <ion-badge slot="start" [color]="obtenerColorNivel(item.nivel)">
+              {{ obtenerNivelLegible(item.nivel) }}
+            </ion-badge>
+
+            <ion-label>
+              <h2>{{ item.titulo }}</h2>
+              <p>{{ item.descripcion }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="reporte-card" *ngIf="hayElementos(datos.debilidadesDetectadas)">
+      <ion-card-header>
+        <ion-card-title>Debilidades detectadas</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Señales de riesgo u oportunidad que requieren atención estratégica.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let item of datos.debilidadesDetectadas"
+            class="item-reporte"
+          >
+            <ion-badge slot="start" [color]="obtenerColorNivel(item.nivel)">
+              {{ obtenerNivelLegible(item.nivel) }}
+            </ion-badge>
+
+            <ion-label>
+              <h2>{{ item.titulo }}</h2>
+              <p>{{ item.descripcion }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="reporte-card" *ngIf="hayElementos(datos.recomendaciones)">
+      <ion-card-header>
+        <ion-card-title>Recomendaciones estratégicas</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Acciones sugeridas para mejorar el desempeño comercial, la retención y la toma de decisiones.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let item of datos.recomendaciones"
+            class="item-reporte"
+          >
+            <ion-badge slot="start" [color]="obtenerColorNivel(item.nivel)">
+              {{ obtenerNivelLegible(item.nivel) }}
+            </ion-badge>
+
+            <ion-label>
+              <h2>{{ item.titulo }}</h2>
+              <p>{{ item.descripcion }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </ng-container>
 </ion-content>

@@ -1,28 +1,27 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
+  IonBadge,
   IonButton,
   IonCard,
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonCol,
   IonContent,
-  IonGrid,
-  IonHeader,
   IonItem,
   IonLabel,
   IonList,
-  IonRow,
   IonSpinner,
-  IonText,
-  IonTitle,
-  IonToolbar
+  IonText
 } from '@ionic/angular/standalone';
 
 import { ResumenDashboard } from '../../models/resumen-dashboard.model';
 import { DashboardService } from '../../services/dashboard.service';
+import { InsightCardComponent } from '../../shared/components/insight-card/insight-card.component';
+import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
 import { NavbarComponent } from '../../shared/components/navbar/navbar.component';
+import { SectionHeaderComponent } from '../../shared/components/section-header/section-header.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -31,13 +30,12 @@ import { NavbarComponent } from '../../shared/components/navbar/navbar.component
   standalone: true,
   imports: [
     CommonModule,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
+    RouterLink,
+    NavbarComponent,
+    SectionHeaderComponent,
+    KpiCardComponent,
+    InsightCardComponent,
     IonContent,
-    IonGrid,
-    IonRow,
-    IonCol,
     IonCard,
     IonCardHeader,
     IonCardTitle,
@@ -48,11 +46,17 @@ import { NavbarComponent } from '../../shared/components/navbar/navbar.component
     IonList,
     IonItem,
     IonLabel,
-    NavbarComponent
+    IonBadge
   ]
 })
 export class DashboardPage implements OnInit {
   private readonly dashboardService = inject(DashboardService);
+
+  private readonly formatoNumero = new Intl.NumberFormat('es-MX');
+  private readonly formatoDecimal = new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 
   resumen = signal<ResumenDashboard | null>(null);
   cargando = signal<boolean>(false);
@@ -76,5 +80,23 @@ export class DashboardPage implements OnInit {
         this.cargando.set(false);
       }
     });
+  }
+
+  formatearNumero(valor: number): string {
+    return this.formatoNumero.format(valor);
+  }
+
+  formatearDecimal(valor: number): string {
+    return this.formatoDecimal.format(valor);
+  }
+
+  obtenerLecturaEjecutiva(): string {
+    const datos = this.resumen();
+
+    if (!datos) {
+      return 'No hay información suficiente para generar una lectura ejecutiva.';
+    }
+
+    return `El análisis general muestra que ${datos.paisMayorConsumo} concentra el mayor consumo, el género ${datos.generoMasVisto} lidera la demanda y el plan ${datos.planMayorConsumo} presenta el mayor nivel de actividad. La franja ${datos.franjaHorariaMayorActividad} puede considerarse clave para campañas, estrenos o recomendaciones dentro de la plataforma.`;
   }
 }

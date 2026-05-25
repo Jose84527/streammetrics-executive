@@ -1,12 +1,11 @@
 <app-navbar></app-navbar>
 
 <ion-content class="ion-padding">
-  <section class="encabezado">
-    <h1>Dashboard ejecutivo</h1>
-    <p>
-      Resumen general de consumo, actividad y comportamiento de la plataforma de streaming.
-    </p>
-  </section>
+  <app-section-header
+    etiqueta="Panel general"
+    titulo="Dashboard ejecutivo"
+    descripcion="Resumen inicial de los KPIs más importantes para evaluar consumo, actividad y comportamiento de la plataforma."
+  ></app-section-header>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarResumen()">
@@ -16,7 +15,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando KPIs...</p>
+    <p>Cargando KPIs principales...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -24,87 +23,129 @@
   </ion-text>
 
   <ng-container *ngIf="resumen() as datos">
-    <ion-grid>
-      <ion-row>
-        <ion-col size="12" size-md="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Total visualizaciones</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              <p class="valor-principal">
-                {{ datos.totalVisualizaciones | number }}
-              </p>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
+    <section class="hero-card">
+      <div>
+        <p class="hero-etiqueta">Resumen ejecutivo</p>
+        <h2>Panorama general de la plataforma</h2>
+        <p>
+          Consulta rápidamente los indicadores clave antes de entrar al análisis detallado
+          por consumo, mercados, planes, metas, perfiles y contenidos.
+        </p>
+      </div>
 
-        <ion-col size="12" size-md="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Total horas vistas</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              <p class="valor-principal">
-                {{ datos.totalHorasVistas | number:'1.2-2' }}
-              </p>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
+      <ion-button size="small" routerLink="/reporte-ejecutivo">
+        Ver reporte
+      </ion-button>
+    </section>
 
-        <ion-col size="12" size-md="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Perfiles analizados</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              <p class="valor-principal">
-                {{ datos.totalPerfilesAnalizados | number }}
-              </p>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
+    <section class="resumen-grid principal">
+      <app-kpi-card
+        titulo="Visualizaciones totales"
+        [valor]="formatearNumero(datos.totalVisualizaciones)"
+        detalle="Reproducciones registradas en el periodo analizado"
+        variante="normal"
+      ></app-kpi-card>
 
-        <ion-col size="12" size-md="6">
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Franja Horaria con mayor actividad</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              <p class="valor-principal texto">
-                {{ datos.franjaHorariaMayorActividad }}
-              </p>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+      <app-kpi-card
+        titulo="Horas vistas"
+        [valor]="formatearDecimal(datos.totalHorasVistas)"
+        detalle="Tiempo total acumulado de consumo"
+        variante="normal"
+      ></app-kpi-card>
 
-    <ion-card>
+      <app-kpi-card
+        titulo="Perfiles analizados"
+        [valor]="formatearNumero(datos.totalPerfilesAnalizados)"
+        detalle="Base de perfiles considerados en el análisis"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Franja horaria clave"
+        [valor]="datos.franjaHorariaMayorActividad"
+        detalle="Periodo con mayor actividad de visualización"
+        variante="positivo"
+      ></app-kpi-card>
+    </section>
+
+    <app-insight-card
+      titulo="Lectura ejecutiva"
+      [descripcion]="obtenerLecturaEjecutiva()"
+      nivel="informativo"
+    ></app-insight-card>
+
+    <section class="resumen-grid secundario">
+      <app-kpi-card
+        titulo="Género dominante"
+        [valor]="datos.generoMasVisto"
+        detalle="Categoría con mayor consumo general"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Mercado principal"
+        [valor]="datos.paisMayorConsumo"
+        detalle="País con mayor actividad registrada"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Plan con mayor consumo"
+        [valor]="datos.planMayorConsumo"
+        detalle="Plan de suscripción con mayor actividad"
+        variante="normal"
+      ></app-kpi-card>
+    </section>
+
+    <ion-card class="modulos-card">
       <ion-card-header>
-        <ion-card-title>Líderes de consumo</ion-card-title>
+        <ion-card-title>Explorar análisis detallado</ion-card-title>
       </ion-card-header>
 
       <ion-card-content>
+        <p class="descripcion-bloque">
+          Profundiza en los módulos específicos para revisar gráficas, comparativas,
+          rankings y recomendaciones por área de negocio.
+        </p>
+
         <ion-list>
-          <ion-item>
+          <ion-item routerLink="/consumo" button detail="true">
+            <ion-badge slot="start" color="primary">01</ion-badge>
             <ion-label>
-              <h2>Género más visto</h2>
-              <p>{{ datos.generoMasVisto }}</p>
+              <h2>Consumo</h2>
+              <p>Géneros con más visualizaciones y horas vistas.</p>
             </ion-label>
           </ion-item>
 
-          <ion-item>
+          <ion-item routerLink="/mercados" button detail="true">
+            <ion-badge slot="start" color="primary">02</ion-badge>
             <ion-label>
-              <h2>País con mayor consumo</h2>
-              <p>{{ datos.paisMayorConsumo }}</p>
+              <h2>Mercados</h2>
+              <p>Comparación de países y continentes con mayor actividad.</p>
             </ion-label>
           </ion-item>
 
-          <ion-item>
+          <ion-item routerLink="/metas" button detail="true">
+            <ion-badge slot="start" color="warning">03</ion-badge>
             <ion-label>
-              <h2>Plan con mayor consumo</h2>
-              <p>{{ datos.planMayorConsumo }}</p>
+              <h2>Metas</h2>
+              <p>Cumplimiento real contra objetivos esperados.</p>
+            </ion-label>
+          </ion-item>
+
+          <ion-item routerLink="/perfiles" button detail="true">
+            <ion-badge slot="start" color="danger">04</ion-badge>
+            <ion-label>
+              <h2>Perfiles</h2>
+              <p>Actividad, inactividad y riesgo de abandono.</p>
+            </ion-label>
+          </ion-item>
+
+          <ion-item routerLink="/contenidos" button detail="true">
+            <ion-badge slot="start" color="success">05</ion-badge>
+            <ion-label>
+              <h2>Contenidos</h2>
+              <p>Rendimiento de títulos por visualización, calificación y finalización.</p>
             </ion-label>
           </ion-item>
         </ion-list>
