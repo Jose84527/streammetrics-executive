@@ -1,0 +1,75 @@
+<app-navbar></app-navbar>
+
+<ion-content class="ion-padding">
+  <app-section-header
+    etiqueta="Conexión local"
+    titulo="Configuración del servidor"
+    descripcion="Ingresa la IP de tu laptop para que la app móvil pueda consumir el backend Spring Boot desde la misma red Wi-Fi."
+  ></app-section-header>
+
+  <ion-card class="config-card">
+    <ion-card-header>
+      <ion-card-title>Backend local</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <p class="descripcion-bloque">
+        Usa la dirección IPv4 de tu computadora. Por ejemplo:
+        <strong>192.168.1.70</strong>. El puerto por defecto del backend es
+        <strong>8080</strong>.
+      </p>
+
+      <ion-item>
+        <ion-label position="stacked">IP de la laptop</ion-label>
+        <ion-input
+          type="text"
+          inputmode="decimal"
+          placeholder="192.168.1.70"
+          [ngModel]="ip()"
+          (ngModelChange)="actualizarIp($event)"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Puerto</ion-label>
+        <ion-input
+          type="number"
+          placeholder="8080"
+          [ngModel]="puerto()"
+          (ngModelChange)="actualizarPuerto($event)"
+        ></ion-input>
+      </ion-item>
+
+      <div class="acciones">
+        <ion-button fill="outline" (click)="probarConexion()" [disabled]="probando()">
+          Probar conexión
+        </ion-button>
+
+        <ion-button (click)="guardarYContinuar()" [disabled]="!conexionExitosa()">
+          Guardar y continuar
+        </ion-button>
+      </div>
+
+      <div class="estado" *ngIf="probando()">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Probando conexión con el backend...</p>
+      </div>
+
+      <ion-text
+        *ngIf="mensaje()"
+        [color]="conexionExitosa() ? 'success' : 'danger'"
+      >
+        <p class="mensaje">{{ mensaje() }}</p>
+      </ion-text>
+
+      <ion-button
+        size="small"
+        fill="clear"
+        color="medium"
+        (click)="limpiarConfiguracion()"
+      >
+        Eliminar configuración guardada
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

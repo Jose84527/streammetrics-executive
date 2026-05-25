@@ -51,6 +51,7 @@ export class AppComponent {
     { titulo: 'Metas', ruta: '/metas' },
     { titulo: 'Perfiles', ruta: '/perfiles' },
     { titulo: 'Contenidos', ruta: '/contenidos' },
-    { titulo: 'Reporte ejecutivo', ruta: '/reporte-ejecutivo' }
+    { titulo: 'Reporte ejecutivo', ruta: '/reporte-ejecutivo' },
+    { titulo: 'Servidor', ruta: '/configuracion-servidor' }
   ];
 }
