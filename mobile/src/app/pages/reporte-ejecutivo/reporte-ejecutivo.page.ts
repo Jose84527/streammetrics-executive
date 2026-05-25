@@ -85,16 +85,20 @@ export class ReporteEjecutivoPage implements OnInit {
     });
   }
 
-  generarPdf(): void {
-    const datos = this.reporte();
+async generarPdf(): Promise<void> {
+  const datos = this.reporte();
 
-    if (!datos) {
-      this.error.set('No hay datos disponibles para generar el PDF.');
-      return;
-    }
-
-    this.reportePdfService.generarReporteEjecutivo(datos);
+  if (!datos) {
+    this.error.set('No hay datos disponibles para generar el PDF.');
+    return;
   }
+
+  try {
+    await this.reportePdfService.generarReporteEjecutivo(datos);
+  } catch {
+    this.error.set('No se pudo generar o compartir el PDF en el dispositivo.');
+  }
+}
 
   formatearNumero(valor: number): string {
     return this.formatoNumero.format(valor);

@@ -1,4 +1,7 @@
 import { Injectable } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -11,7 +14,45 @@ import {
   providedIn: 'root'
 })
 export class ReportePdfService {
-  generarReporteEjecutivo(reporte: ResumenReporteEjecutivo): void {
+  async generarReporteEjecutivo(reporte: ResumenReporteEjecutivo): Promise<void> {
+    const documento = this.crearDocumentoReporte(reporte);
+    const nombreArchivo = `reporte-ejecutivo-streaming-${Date.now()}.pdf`;
+
+    if (Capacitor.isNativePlatform()) {
+      await this.guardarYCompartirPdfEnDispositivo(documento, nombreArchivo);
+      return;
+    }
+
+    documento.save(nombreArchivo);
+  }
+
+  private async guardarYCompartirPdfEnDispositivo(
+    documento: jsPDF,
+    nombreArchivo: string
+  ): Promise<void> {
+    const dataUri = documento.output('datauristring');
+    const base64 = dataUri.split(',')[1];
+
+    await Filesystem.writeFile({
+      path: nombreArchivo,
+      data: base64,
+      directory: Directory.Cache
+    });
+
+    const archivo = await Filesystem.getUri({
+      path: nombreArchivo,
+      directory: Directory.Cache
+    });
+
+    await Share.share({
+      title: 'Reporte ejecutivo',
+      text: 'Reporte ejecutivo generado desde Panel Ejecutivo Streaming.',
+      url: archivo.uri,
+      dialogTitle: 'Compartir reporte PDF'
+    });
+  }
+
+  private crearDocumentoReporte(reporte: ResumenReporteEjecutivo): jsPDF {
     const documento = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -47,7 +88,13 @@ export class ReportePdfService {
       'El objetivo es apoyar la toma de decisiones mediante hallazgos, debilidades detectadas y recomendaciones estrategicas.'
     ];
 
-    posicionY = this.agregarParrafos(documento, introduccion, margenIzquierdo, posicionY, anchoPagina);
+    posicionY = this.agregarParrafos(
+      documento,
+      introduccion,
+      margenIzquierdo,
+      posicionY,
+      anchoPagina
+    );
 
     posicionY += 4;
 
@@ -119,11 +166,17 @@ export class ReportePdfService {
 
     const conclusion = `El analisis muestra que ${reporte.resumenGeneral.paisMayorConsumo} concentra el mayor consumo, el genero ${reporte.resumenGeneral.generoMasVisto} lidera la demanda y el plan ${reporte.resumenGeneral.planMayorConsumo} presenta el mayor nivel de actividad. Se recomienda priorizar acciones comerciales, recomendaciones personalizadas y estrategias de retencion en los segmentos con mayor oportunidad.`;
 
-    this.agregarParrafos(documento, [conclusion], margenIzquierdo, posicionY, anchoPagina);
+    this.agregarParrafos(
+      documento,
+      [conclusion],
+      margenIzquierdo,
+      posicionY,
+      anchoPagina
+    );
 
     this.agregarNumeracionPaginas(documento);
 
-    documento.save('reporte-ejecutivo-streaming.pdf');
+    return documento;
   }
 
   private agregarSeccionItems(
@@ -154,8 +207,8 @@ export class ReportePdfService {
         this.limpiarTexto(item.descripcion)
       ]),
       styles: {
-        fontSize: 8.5,
-        cellPadding: 3,
+        fontSize: 8.2,
+        cellPadding: 2.5,
         overflow: 'linebreak'
       },
       headStyles: {
@@ -166,9 +219,9 @@ export class ReportePdfService {
         fillColor: [245, 247, 250]
       },
       columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 105 }
+        0: { cellWidth: 23 },
+        1: { cellWidth: 43 },
+        2: { cellWidth: 100 }
       },
       margin: {
         left: margenIzquierdo,
@@ -189,7 +242,10 @@ export class ReportePdfService {
     const anchoTexto = anchoPagina - margenIzquierdo * 2;
 
     for (const parrafo of parrafos) {
-      const lineas = documento.splitTextToSize(this.limpiarTexto(parrafo), anchoTexto);
+      const lineas = documento.splitTextToSize(
+        this.limpiarTexto(parrafo),
+        anchoTexto
+      );
 
       documento.text(lineas, margenIzquierdo, posicionY);
 
@@ -199,7 +255,11 @@ export class ReportePdfService {
     return posicionY;
   }
 
-  private validarEspacio(documento: jsPDF, posicionY: number, espacioNecesario: number): number {
+  private validarEspacio(
+    documento: jsPDF,
+    posicionY: number,
+    espacioNecesario: number
+  ): number {
     const altoPagina = documento.internal.pageSize.getHeight();
 
     if (posicionY + espacioNecesario > altoPagina - 15) {
