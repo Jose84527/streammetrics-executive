@@ -1,20 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import {
+  IonAccordion,
+  IonAccordionGroup,
   IonBadge,
   IonButton,
   IonCard,
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonChip,
-  IonCol,
   IonContent,
-  IonGrid,
   IonItem,
   IonLabel,
   IonList,
-  IonRow,
   IonSegment,
   IonSegmentButton,
   IonSelect,
@@ -25,7 +23,9 @@ import {
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartOptions } from 'chart.js';
 
+import { FiltrosKpi, OpcionesFiltro } from '../../models/filtros-kpi.model';
 import { ConsumoMercado, ResumenMercados } from '../../models/mercado-consumo.model';
+import { FiltroService } from '../../services/filtro.service';
 import { MercadoService } from '../../services/mercado.service';
 import { InsightCardComponent } from '../../shared/components/insight-card/insight-card.component';
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
@@ -47,9 +47,6 @@ type MetricaMercado = 'visualizaciones' | 'horasVistas';
     InsightCardComponent,
     BaseChartDirective,
     IonContent,
-    IonGrid,
-    IonRow,
-    IonCol,
     IonCard,
     IonCardHeader,
     IonCardTitle,
@@ -61,15 +58,17 @@ type MetricaMercado = 'visualizaciones' | 'horasVistas';
     IonItem,
     IonLabel,
     IonBadge,
-    IonChip,
+    IonSegment,
+    IonSegmentButton,
     IonSelect,
     IonSelectOption,
-    IonSegment,
-    IonSegmentButton
+    IonAccordion,
+    IonAccordionGroup
   ]
 })
 export class MercadosPage implements OnInit {
   private readonly mercadoService = inject(MercadoService);
+  private readonly filtroService = inject(FiltroService);
 
   private readonly formatoNumero = new Intl.NumberFormat('es-MX');
   private readonly formatoDecimal = new Intl.NumberFormat('es-MX', {
@@ -78,11 +77,21 @@ export class MercadosPage implements OnInit {
   });
 
   resumen = signal<ResumenMercados | null>(null);
+  opcionesFiltro = signal<OpcionesFiltro | null>(null);
+
   cargando = signal<boolean>(false);
+  cargandoFiltros = signal<boolean>(false);
   error = signal<string | null>(null);
 
-  paisesSeleccionados = signal<string[]>([]);
   metricaGrafica = signal<MetricaMercado>('visualizaciones');
+
+  anioSeleccionado = signal<number | null>(null);
+  continenteSeleccionado = signal<string | null>(null);
+  planSeleccionado = signal<string | null>(null);
+  tipoContenidoSeleccionado = signal<string | null>(null);
+  generoSeleccionado = signal<string | null>(null);
+
+  filtrosAplicados = signal<FiltrosKpi>({});
 
   readonly opcionesDona: ChartOptions<'doughnut'> = {
     responsive: true,
@@ -121,12 +130,38 @@ export class MercadosPage implements OnInit {
     }
   };
 
+  paises = computed<ConsumoMercado[]>(() => {
+    return this.resumen()?.paisesMayorConsumo ?? [];
+  });
+
+  continentes = computed<ConsumoMercado[]>(() => {
+    return this.resumen()?.continentesMayorConsumo ?? [];
+  });
+
+  totalVisualizaciones = computed<number>(() => {
+    return this.paises().reduce(
+      (total, mercado) => total + mercado.visualizaciones,
+      0
+    );
+  });
+
+  totalHorasVistas = computed<number>(() => {
+    return this.paises().reduce(
+      (total, mercado) => total + mercado.horasVistas,
+      0
+    );
+  });
+
   topCincoPaises = computed<ConsumoMercado[]>(() => {
-    return this.resumen()?.paisesMayorConsumo.slice(0, 5) ?? [];
+    return this.paises().slice(0, 5);
+  });
+
+  topDiezPaises = computed<ConsumoMercado[]>(() => {
+    return this.paises().slice(0, 10);
   });
 
   datosGraficaContinentes = computed<ChartData<'doughnut'>>(() => {
-    const continentes = this.resumen()?.continentesMayorConsumo ?? [];
+    const continentes = this.continentes();
 
     return {
       labels: continentes.map((continente) => continente.nombre),
@@ -139,24 +174,14 @@ export class MercadosPage implements OnInit {
   });
 
   datosGraficaPaises = computed<ChartData<'bar'>>(() => {
-    const datos = this.resumen();
+    const paises = this.topDiezPaises();
     const metrica = this.metricaGrafica();
-
-    if (!datos) {
-      return {
-        labels: [],
-        datasets: []
-      };
-    }
-
-    const paises = this.obtenerPaisesParaComparacion(datos);
-    const etiqueta = metrica === 'visualizaciones' ? 'Visualizaciones' : 'Horas vistas';
 
     return {
       labels: paises.map((pais) => pais.nombre),
       datasets: [
         {
-          label: etiqueta,
+          label: metrica === 'visualizaciones' ? 'Visualizaciones' : 'Horas vistas',
           data: paises.map((pais) =>
             metrica === 'visualizaciones'
               ? pais.visualizaciones
@@ -168,17 +193,31 @@ export class MercadosPage implements OnInit {
   });
 
   ngOnInit(): void {
+    this.cargarOpcionesFiltros();
     this.cargarMercados();
   }
 
-  cargarMercados(): void {
+  cargarOpcionesFiltros(): void {
+    this.cargandoFiltros.set(true);
+
+    this.filtroService.obtenerOpcionesFiltros().subscribe({
+      next: (respuesta) => {
+        this.opcionesFiltro.set(respuesta);
+        this.cargandoFiltros.set(false);
+      },
+      error: () => {
+        this.cargandoFiltros.set(false);
+      }
+    });
+  }
+
+  cargarMercados(filtros: FiltrosKpi = this.filtrosAplicados()): void {
     this.cargando.set(true);
     this.error.set(null);
 
-    this.mercadoService.obtenerResumenMercados().subscribe({
+    this.mercadoService.obtenerResumenMercados(filtros).subscribe({
       next: (respuesta) => {
         this.resumen.set(respuesta);
-        this.establecerSeleccionInicial(respuesta);
         this.cargando.set(false);
       },
       error: () => {
@@ -188,26 +227,49 @@ export class MercadosPage implements OnInit {
     });
   }
 
-  obtenerPaisLider(): ConsumoMercado | null {
-    return this.resumen()?.paisesMayorConsumo?.[0] ?? null;
+  aplicarFiltros(): void {
+    const filtros: FiltrosKpi = {
+      anio: this.anioSeleccionado(),
+      continente: this.continenteSeleccionado(),
+      plan: this.planSeleccionado(),
+      tipoContenido: this.tipoContenidoSeleccionado(),
+      genero: this.generoSeleccionado()
+    };
+
+    this.filtrosAplicados.set(filtros);
+    this.cargarMercados(filtros);
   }
 
-  obtenerContinenteLider(): ConsumoMercado | null {
-    return this.resumen()?.continentesMayorConsumo?.[0] ?? null;
+  limpiarFiltros(): void {
+    this.anioSeleccionado.set(null);
+    this.continenteSeleccionado.set(null);
+    this.planSeleccionado.set(null);
+    this.tipoContenidoSeleccionado.set(null);
+    this.generoSeleccionado.set(null);
+
+    const filtros: FiltrosKpi = {};
+    this.filtrosAplicados.set(filtros);
+    this.cargarMercados(filtros);
   }
 
-  actualizarSeleccionPaises(valor: string[] | string | null | undefined): void {
-    if (Array.isArray(valor)) {
-      this.paisesSeleccionados.set(valor);
-      return;
-    }
+  actualizarAnio(valor: string | number | null | undefined): void {
+    this.anioSeleccionado.set(valor ? Number(valor) : null);
+  }
 
-    if (typeof valor === 'string') {
-      this.paisesSeleccionados.set([valor]);
-      return;
-    }
+  actualizarContinente(valor: string | number | null | undefined): void {
+    this.continenteSeleccionado.set(valor ? String(valor) : null);
+  }
 
-    this.paisesSeleccionados.set([]);
+  actualizarPlan(valor: string | number | null | undefined): void {
+    this.planSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarTipoContenido(valor: string | number | null | undefined): void {
+    this.tipoContenidoSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarGenero(valor: string | number | null | undefined): void {
+    this.generoSeleccionado.set(valor ? String(valor) : null);
   }
 
   actualizarMetrica(valor: string | number | undefined): void {
@@ -216,10 +278,12 @@ export class MercadosPage implements OnInit {
     }
   }
 
-  restablecerTopCinco(): void {
-    this.paisesSeleccionados.set(
-      this.topCincoPaises().map((pais) => pais.nombre)
-    );
+  obtenerPaisLider(): ConsumoMercado | null {
+    return this.paises()[0] ?? null;
+  }
+
+  obtenerContinenteLider(): ConsumoMercado | null {
+    return this.continentes()[0] ?? null;
   }
 
   formatearNumero(valor: number): string {
@@ -230,34 +294,90 @@ export class MercadosPage implements OnInit {
     return this.formatoDecimal.format(valor);
   }
 
-  obtenerLecturaEjecutiva(): string {
-    const pais = this.obtenerPaisLider();
-    const continente = this.obtenerContinenteLider();
+  obtenerPorcentajeMercado(mercado: ConsumoMercado): string {
+    const total = this.totalVisualizaciones();
 
-    if (!pais || !continente) {
+    if (total === 0) {
+      return '0.00';
+    }
+
+    return this.formatearDecimal((mercado.visualizaciones / total) * 100);
+  }
+
+  obtenerPorcentajeBarra(mercado: ConsumoMercado): number {
+    const lider = this.obtenerPaisLider();
+
+    if (!lider || lider.visualizaciones === 0) {
+      return 0;
+    }
+
+    return (mercado.visualizaciones / lider.visualizaciones) * 100;
+  }
+
+  hayFiltrosAplicados(): boolean {
+    const filtros = this.filtrosAplicados();
+
+    return Boolean(
+      filtros.anio ||
+      filtros.continente ||
+      filtros.plan ||
+      filtros.tipoContenido ||
+      filtros.genero
+    );
+  }
+
+  hayFiltroContinenteAplicado(): boolean {
+    return Boolean(this.filtrosAplicados().continente);
+  }
+
+  obtenerContinenteFiltrado(): string {
+    return this.filtrosAplicados().continente ?? '';
+  }
+
+  obtenerResumenFiltros(): string {
+    const filtros = this.filtrosAplicados();
+    const activos: string[] = [];
+
+    if (filtros.anio) {
+      activos.push(`Año ${filtros.anio}`);
+    }
+
+    if (filtros.continente) {
+      activos.push(`Continente ${filtros.continente}`);
+    }
+
+    if (filtros.plan) {
+      activos.push(`Plan ${filtros.plan}`);
+    }
+
+    if (filtros.tipoContenido) {
+      activos.push(`Tipo ${filtros.tipoContenido}`);
+    }
+
+    if (filtros.genero) {
+      activos.push(`Género ${filtros.genero}`);
+    }
+
+    return activos.length > 0 ? activos.join(' · ') : 'Panorama general sin filtros';
+  }
+
+  obtenerLecturaEjecutiva(): string {
+    const paisLider = this.obtenerPaisLider();
+    const continenteLider = this.obtenerContinenteLider();
+    const contexto = this.obtenerResumenFiltros().toLowerCase();
+
+    if (!paisLider) {
       return 'No hay información suficiente para generar una lectura ejecutiva de mercados.';
     }
 
-    return `El mercado con mayor consumo es ${pais.nombre}, mientras que la región dominante es ${continente.nombre}. Esto permite priorizar campañas, recomendaciones y decisiones de catálogo en los mercados con mayor actividad.`;
-  }
-
-  private establecerSeleccionInicial(respuesta: ResumenMercados): void {
-    this.paisesSeleccionados.set(
-      respuesta.paisesMayorConsumo
-        .slice(0, 5)
-        .map((pais) => pais.nombre)
-    );
-  }
-
-  private obtenerPaisesParaComparacion(datos: ResumenMercados): ConsumoMercado[] {
-    const seleccionados = this.paisesSeleccionados();
-
-    if (seleccionados.length === 0) {
-      return datos.paisesMayorConsumo.slice(0, 5);
+    if (this.hayFiltroContinenteAplicado()) {
+      return `Bajo el contexto de ${contexto}, ${paisLider.nombre} lidera el consumo dentro del continente seleccionado. Esta vista permite comparar países del mismo mercado regional y detectar oportunidades específicas por territorio.`;
     }
 
-    return datos.paisesMayorConsumo.filter((pais) =>
-      seleccionados.includes(pais.nombre)
-    );
+    if (!continenteLider) {
+      return 'No hay información suficiente para generar una lectura ejecutiva de mercados.';
+    }
+
+    return `Bajo el contexto de ${contexto}, ${paisLider.nombre} lidera el consumo por país, mientras que ${continenteLider.nombre} concentra el mayor consumo por continente. Esta vista permite comparar mercados y detectar regiones con mayor oportunidad estratégica.`;
   }
 }

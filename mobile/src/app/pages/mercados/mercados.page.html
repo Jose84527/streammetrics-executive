@@ -3,9 +3,144 @@
 <ion-content class="ion-padding">
   <app-section-header
     etiqueta="Mercados"
-    titulo="Consumo por país y continente"
-    descripcion="Analiza los mercados con mayor actividad para identificar regiones estratégicas dentro de la plataforma."
+    titulo="Consumo por mercados"
+    descripcion="Compara países y continentes según visualizaciones y horas vistas. Usa filtros para analizar periodos, planes, géneros o tipos de contenido específicos."
   ></app-section-header>
+
+  <ion-card class="filtros-card">
+    <ion-accordion-group>
+      <ion-accordion value="filtros-mercados">
+        <ion-item slot="header" lines="none" class="filtros-header-item">
+          <ion-label>
+            <div class="filtros-header-title">
+              <h2>Filtros de análisis</h2>
+
+              <ion-badge *ngIf="hayFiltrosAplicados()" color="primary">
+                Activos
+              </ion-badge>
+            </div>
+
+            <p>{{ obtenerResumenFiltros() }}</p>
+          </ion-label>
+        </ion-item>
+
+        <div slot="content" class="filtros-content">
+          <p class="descripcion-bloque">
+            Selecciona uno o varios criterios y presiona Aplicar filtros para recalcular el análisis de mercados.
+          </p>
+
+          <div *ngIf="cargandoFiltros()" class="estado compacto">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando opciones de filtros...</p>
+          </div>
+
+          <ng-container *ngIf="opcionesFiltro() as opciones">
+            <section class="filtros-grid">
+              <ion-item>
+                <ion-label position="stacked">Año</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="anioSeleccionado()"
+                  (ionChange)="actualizarAnio($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let anio of opciones.anios"
+                    [value]="anio"
+                  >
+                    {{ anio }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Continente</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="continenteSeleccionado()"
+                  (ionChange)="actualizarContinente($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let continente of opciones.continentes"
+                    [value]="continente"
+                  >
+                    {{ continente }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Plan</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="planSeleccionado()"
+                  (ionChange)="actualizarPlan($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let plan of opciones.planes"
+                    [value]="plan"
+                  >
+                    {{ plan }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Tipo de contenido</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="tipoContenidoSeleccionado()"
+                  (ionChange)="actualizarTipoContenido($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let tipo of opciones.tiposContenido"
+                    [value]="tipo"
+                  >
+                    {{ tipo }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Género</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="generoSeleccionado()"
+                  (ionChange)="actualizarGenero($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let genero of opciones.generos"
+                    [value]="genero"
+                  >
+                    {{ genero }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </section>
+
+            <div class="acciones-filtros">
+              <ion-button fill="outline" size="small" (click)="limpiarFiltros()">
+                Limpiar filtros
+              </ion-button>
+
+              <ion-button size="small" (click)="aplicarFiltros()">
+                Aplicar filtros
+              </ion-button>
+            </div>
+          </ng-container>
+        </div>
+      </ion-accordion>
+    </ion-accordion-group>
+  </ion-card>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarMercados()">
@@ -15,7 +150,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando análisis de mercados...</p>
+    <p>Calculando consumo por mercados...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -23,27 +158,38 @@
   </ion-text>
 
   <ng-container *ngIf="resumen() as datos">
-    <ion-grid>
-      <ion-row>
-        <ion-col size="12" size-md="6" *ngIf="obtenerPaisLider() as pais">
-          <app-kpi-card
-            titulo="País líder en consumo"
-            [valor]="pais.nombre"
-            [detalle]="formatearNumero(pais.visualizaciones) + ' visualizaciones · ' + formatearDecimal(pais.horasVistas) + ' horas'"
-            variante="positivo"
-          ></app-kpi-card>
-        </ion-col>
+    <section class="resumen-grid">
+      <app-kpi-card
+        *ngIf="obtenerPaisLider() as pais"
+        titulo="País líder"
+        [valor]="pais.nombre"
+        [detalle]="formatearNumero(pais.visualizaciones) + ' visualizaciones · ' + formatearDecimal(pais.horasVistas) + ' horas'"
+        variante="positivo"
+      ></app-kpi-card>
 
-        <ion-col size="12" size-md="6" *ngIf="obtenerContinenteLider() as continente">
-          <app-kpi-card
-            titulo="Continente líder"
-            [valor]="continente.nombre"
-            [detalle]="formatearNumero(continente.visualizaciones) + ' visualizaciones · ' + formatearDecimal(continente.horasVistas) + ' horas'"
-            variante="normal"
-          ></app-kpi-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+      <app-kpi-card
+        *ngIf="!hayFiltroContinenteAplicado() && obtenerContinenteLider() as continente"
+        titulo="Continente líder"
+        [valor]="continente.nombre"
+        [detalle]="formatearNumero(continente.visualizaciones) + ' visualizaciones · ' + formatearDecimal(continente.horasVistas) + ' horas'"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        *ngIf="hayFiltroContinenteAplicado()"
+        titulo="Continente analizado"
+        [valor]="obtenerContinenteFiltrado()"
+        detalle="El análisis se concentra en países de este continente"
+        variante="normal"
+      ></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Visualizaciones analizadas"
+        [valor]="formatearNumero(totalVisualizaciones())"
+        detalle="Total del contexto seleccionado"
+        variante="normal"
+      ></app-kpi-card>
+    </section>
 
     <app-insight-card
       titulo="Lectura ejecutiva"
@@ -53,12 +199,12 @@
 
     <ion-card class="ranking-card">
       <ion-card-header>
-        <ion-card-title>Top 5 países por consumo</ion-card-title>
+        <ion-card-title>Top 5 de países por consumo</ion-card-title>
       </ion-card-header>
 
       <ion-card-content>
         <p class="descripcion-bloque">
-          Ranking de países con mayor número de visualizaciones. La comparación detallada puede ajustarse en la gráfica interactiva.
+          Ranking de países con mayor consumo dentro del contexto seleccionado.
         </p>
 
         <ion-list>
@@ -73,19 +219,18 @@
             <ion-label>
               <div class="fila-ranking">
                 <h2>{{ pais.nombre }}</h2>
-                <strong>{{ formatearNumero(pais.visualizaciones) }}</strong>
+                <strong>{{ obtenerPorcentajeMercado(pais) }}%</strong>
               </div>
 
               <div class="barra-progreso">
                 <div
                   class="barra-relleno"
-                  [style.width.%]="
-                    (pais.visualizaciones / topCincoPaises()[0].visualizaciones) * 100
-                  "
+                  [style.width.%]="obtenerPorcentajeBarra(pais)"
                 ></div>
               </div>
 
               <p>
+                {{ formatearNumero(pais.visualizaciones) }} visualizaciones ·
                 {{ formatearDecimal(pais.horasVistas) }} horas vistas
               </p>
             </ion-label>
@@ -94,98 +239,109 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-grid>
-      <ion-row>
-        <ion-col size="12" size-lg="5">
-          <ion-card class="chart-card">
-            <ion-card-header>
-              <ion-card-title>Participación por continente</ion-card-title>
-            </ion-card-header>
+    <section class="graficas-grid">
+      <ion-card class="chart-card" *ngIf="!hayFiltroContinenteAplicado()">
+        <ion-card-header>
+          <ion-card-title>Distribución por continente</ion-card-title>
+        </ion-card-header>
 
-            <ion-card-content>
-              <p class="descripcion-bloque">
-                Distribución general de visualizaciones entre regiones continentales.
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Participación de cada continente en el consumo total del contexto seleccionado.
+          </p>
+
+          <div class="chart-wrapper dona">
+            <canvas
+              baseChart
+              [type]="'doughnut'"
+              [data]="datosGraficaContinentes()"
+              [options]="opcionesDona"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="chart-card aviso-contexto-card" *ngIf="hayFiltroContinenteAplicado()">
+        <ion-card-header>
+          <ion-card-title>Análisis por continente aplicado</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            La distribución por continente se oculta porque el análisis ya está limitado a
+            <strong>{{ obtenerContinenteFiltrado() }}</strong>.
+          </p>
+
+          <p class="descripcion-bloque">
+            En este contexto, la comparación más útil es revisar qué países tienen mayor consumo dentro del continente seleccionado.
+          </p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="chart-card">
+        <ion-card-header>
+          <ion-card-title>Comparativa de países</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="descripcion-bloque">
+            Cambia la métrica para comparar visualizaciones u horas vistas entre países.
+          </p>
+
+          <ion-segment
+            [value]="metricaGrafica()"
+            (ionChange)="actualizarMetrica($event.detail.value)"
+          >
+            <ion-segment-button value="visualizaciones">
+              <ion-label>Visualizaciones</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="horasVistas">
+              <ion-label>Horas vistas</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+
+          <div class="chart-wrapper barras">
+            <canvas
+              baseChart
+              [type]="'bar'"
+              [data]="datosGraficaPaises()"
+              [options]="opcionesBarras"
+            ></canvas>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </section>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Detalle completo por país</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Lista completa de países encontrados para el contexto seleccionado.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let pais of paises()"
+            class="ranking-item compacto"
+          >
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ pais.nombre }}</h2>
+                <strong>{{ formatearNumero(pais.visualizaciones) }}</strong>
+              </div>
+
+              <p>
+                {{ formatearDecimal(pais.horasVistas) }} horas vistas ·
+                {{ obtenerPorcentajeMercado(pais) }}% del total
               </p>
-
-              <div class="chart-wrapper dona">
-                <canvas
-                  baseChart
-                  [type]="'doughnut'"
-                  [data]="datosGraficaContinentes()"
-                  [options]="opcionesDona"
-                ></canvas>
-              </div>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-
-        <ion-col size="12" size-lg="7">
-          <ion-card class="chart-card">
-            <ion-card-header>
-              <ion-card-title>Comparativa interactiva de países</ion-card-title>
-            </ion-card-header>
-
-            <ion-card-content>
-              <p class="descripcion-bloque">
-                Selecciona uno o varios países para comparar visualizaciones u horas vistas.
-              </p>
-
-              <ion-segment
-                [value]="metricaGrafica()"
-                (ionChange)="actualizarMetrica($event.detail.value)"
-              >
-                <ion-segment-button value="visualizaciones">
-                  <ion-label>Visualizaciones</ion-label>
-                </ion-segment-button>
-
-                <ion-segment-button value="horasVistas">
-                  <ion-label>Horas vistas</ion-label>
-                </ion-segment-button>
-              </ion-segment>
-
-              <ion-select
-                label="Países"
-                label-placement="stacked"
-                interface="popover"
-                multiple="true"
-                [value]="paisesSeleccionados()"
-                (ionChange)="actualizarSeleccionPaises($event.detail.value)"
-              >
-                <ion-select-option
-                  *ngFor="let pais of datos.paisesMayorConsumo"
-                  [value]="pais.nombre"
-                >
-                  {{ pais.nombre }}
-                </ion-select-option>
-              </ion-select>
-
-              <div class="chips-seleccion">
-                <ion-chip
-                  *ngFor="let pais of paisesSeleccionados()"
-                  color="primary"
-                >
-                  {{ pais }}
-                </ion-chip>
-              </div>
-
-              <div class="acciones-grafica">
-                <ion-button size="small" fill="outline" (click)="restablecerTopCinco()">
-                  Restablecer Top 5
-                </ion-button>
-              </div>
-
-              <div class="chart-wrapper barras">
-                <canvas
-                  baseChart
-                  [type]="'bar'"
-                  [data]="datosGraficaPaises()"
-                  [options]="opcionesBarras"
-                ></canvas>
-              </div>
-            </ion-card-content>
-          </ion-card>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
   </ng-container>
 </ion-content>
