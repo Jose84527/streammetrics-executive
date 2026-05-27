@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import {
+  IonAccordion,
+  IonAccordionGroup,
   IonBadge,
   IonButton,
   IonCard,
@@ -8,13 +10,10 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonChip,
-  IonCol,
   IonContent,
-  IonGrid,
   IonItem,
   IonLabel,
   IonList,
-  IonRow,
   IonSegment,
   IonSegmentButton,
   IonSelect,
@@ -23,20 +22,18 @@ import {
   IonText
 } from '@ionic/angular/standalone';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartData, ChartOptions } from 'chart.js';
+import { ChartData, ChartOptions } from 'chart.js';
 
 import { ConsumoGenero, ResumenConsumoGeneros } from '../../models/consumo-genero.model';
+import { FiltrosKpi, OpcionesFiltro } from '../../models/filtros-kpi.model';
 import { ConsumoService } from '../../services/consumo.service';
+import { FiltroService } from '../../services/filtro.service';
 import { InsightCardComponent } from '../../shared/components/insight-card/insight-card.component';
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
 import { NavbarComponent } from '../../shared/components/navbar/navbar.component';
 import { SectionHeaderComponent } from '../../shared/components/section-header/section-header.component';
 
-type MetricaGrafica = 'visualizaciones' | 'horasVistas';
-
-interface GeneroConIndice extends ConsumoGenero {
-  indiceEjecutivo: number;
-}
+type MetricaConsumo = 'visualizaciones' | 'horasVistas';
 
 @Component({
   selector: 'app-consumo',
@@ -51,9 +48,6 @@ interface GeneroConIndice extends ConsumoGenero {
     InsightCardComponent,
     BaseChartDirective,
     IonContent,
-    IonGrid,
-    IonRow,
-    IonCol,
     IonCard,
     IonCardHeader,
     IonCardTitle,
@@ -65,15 +59,19 @@ interface GeneroConIndice extends ConsumoGenero {
     IonItem,
     IonLabel,
     IonBadge,
-    IonChip,
+    IonSegment,
+    IonSegmentButton,
     IonSelect,
     IonSelectOption,
-    IonSegment,
-    IonSegmentButton
+    IonChip,
+    IonAccordion,
+    IonAccordionGroup
   ]
 })
 export class ConsumoPage implements OnInit {
   private readonly consumoService = inject(ConsumoService);
+  private readonly filtroService = inject(FiltroService);
+
   private readonly formatoNumero = new Intl.NumberFormat('es-MX');
   private readonly formatoDecimal = new Intl.NumberFormat('es-MX', {
     minimumFractionDigits: 2,
@@ -81,11 +79,21 @@ export class ConsumoPage implements OnInit {
   });
 
   resumen = signal<ResumenConsumoGeneros | null>(null);
+  opcionesFiltro = signal<OpcionesFiltro | null>(null);
+
   cargando = signal<boolean>(false);
+  cargandoFiltros = signal<boolean>(false);
   error = signal<string | null>(null);
 
-  generosSeleccionados = signal<string[]>([]);
-  metricaGrafica = signal<MetricaGrafica>('visualizaciones');
+  metricaGrafica = signal<MetricaConsumo>('visualizaciones');
+
+  anioSeleccionado = signal<number | null>(null);
+  paisSeleccionado = signal<string | null>(null);
+  continenteSeleccionado = signal<string | null>(null);
+  planSeleccionado = signal<string | null>(null);
+  tipoContenidoSeleccionado = signal<string | null>(null);
+
+  filtrosAplicados = signal<FiltrosKpi>({});
 
   readonly opcionesDona: ChartOptions<'doughnut'> = {
     responsive: true,
@@ -103,6 +111,7 @@ export class ConsumoPage implements OnInit {
   readonly opcionesBarras: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
+    indexAxis: 'y',
     plugins: {
       legend: {
         display: false
@@ -113,101 +122,71 @@ export class ConsumoPage implements OnInit {
     },
     scales: {
       x: {
+        beginAtZero: true
+      },
+      y: {
         ticks: {
           autoSkip: false
         }
-      },
-      y: {
-        beginAtZero: true
       }
     }
   };
 
-  topCincoGeneral = computed<GeneroConIndice[]>(() => {
-    const datos = this.resumen();
+  totalVisualizaciones = computed<number>(() => {
+    return this.resumen()?.generosPorVisualizaciones.reduce(
+      (total, genero) => total + genero.visualizaciones,
+      0
+    ) ?? 0;
+  });
 
-    if (!datos) {
-      return [];
-    }
+  totalHorasVistas = computed<number>(() => {
+    return this.resumen()?.generosPorVisualizaciones.reduce(
+      (total, genero) => total + genero.horasVistas,
+      0
+    ) ?? 0;
+  });
 
-    const generos = this.obtenerGenerosUnicos(datos);
-    const maxVisualizaciones = Math.max(...generos.map((genero) => genero.visualizaciones), 1);
-    const maxHoras = Math.max(...generos.map((genero) => genero.horasVistas), 1);
-
-    return generos
-      .map((genero) => ({
-        ...genero,
-        indiceEjecutivo:
-          ((genero.visualizaciones / maxVisualizaciones) * 50) +
-          ((genero.horasVistas / maxHoras) * 50)
-      }))
-      .sort((a, b) => b.indiceEjecutivo - a.indiceEjecutivo)
-      .slice(0, 5);
+  topCincoGeneros = computed<ConsumoGenero[]>(() => {
+    return this.resumen()?.generosPorVisualizaciones.slice(0, 5) ?? [];
   });
 
   datosGraficaDona = computed<ChartData<'doughnut'>>(() => {
-  const datos = this.resumen();
+    const generos = this.resumen()?.generosPorVisualizaciones ?? [];
+    const topCinco = generos.slice(0, 5);
+    const resto = generos.slice(5);
 
-  if (!datos) {
-    return {
-      labels: [],
-      datasets: []
-    };
-  }
+    const totalOtros = resto.reduce(
+      (total, genero) => total + genero.visualizaciones,
+      0
+    );
 
-  const generos = this.obtenerGenerosUnicos(datos);
-  const topCinco = this.topCincoGeneral();
+    const labels = topCinco.map((genero) => genero.nombre);
+    const data = topCinco.map((genero) => genero.visualizaciones);
 
-  const totalVisualizacionesGeneral = generos.reduce(
-    (total, genero) => total + genero.visualizaciones,
-    0
-  );
-
-  const totalVisualizacionesTopCinco = topCinco.reduce(
-    (total, genero) => total + genero.visualizaciones,
-    0
-  );
-
-  const visualizacionesOtros =
-    totalVisualizacionesGeneral - totalVisualizacionesTopCinco;
-
-  const etiquetas = topCinco.map((genero) => genero.nombre);
-  const valores = topCinco.map((genero) => genero.visualizaciones);
-
-  if (visualizacionesOtros > 0) {
-    etiquetas.push('Resto de géneros');
-    valores.push(visualizacionesOtros);
-  }
-
-  return {
-    labels: etiquetas,
-    datasets: [
-      {
-        data: valores
-      }
-    ]
-  };
-});
-
-  datosGraficaBarras = computed<ChartData<'bar'>>(() => {
-    const datos = this.resumen();
-    const metrica = this.metricaGrafica();
-
-    if (!datos) {
-      return {
-        labels: [],
-        datasets: []
-      };
+    if (totalOtros > 0) {
+      labels.push('Otros');
+      data.push(totalOtros);
     }
 
-    const generos = this.obtenerGenerosParaComparacion(datos);
-    const etiqueta = metrica === 'visualizaciones' ? 'Visualizaciones' : 'Horas vistas';
+    return {
+      labels,
+      datasets: [
+        {
+          data
+        }
+      ]
+    };
+  });
+
+  datosGraficaBarras = computed<ChartData<'bar'>>(() => {
+    const generos = this.resumen()?.generosPorVisualizaciones ?? [];
+    const metrica = this.metricaGrafica();
 
     return {
       labels: generos.map((genero) => genero.nombre),
       datasets: [
         {
-          label: etiqueta,
+          label: metrica === 'visualizaciones' ? 'Visualizaciones' : 'Horas vistas',
           data: generos.map((genero) =>
             metrica === 'visualizaciones'
               ? genero.visualizaciones
@@ -219,38 +198,83 @@ export class ConsumoPage implements OnInit {
   });
 
   ngOnInit(): void {
+    this.cargarOpcionesFiltros();
     this.cargarConsumo();
   }
 
-  cargarConsumo(): void {
+  cargarOpcionesFiltros(): void {
+    this.cargandoFiltros.set(true);
+
+    this.filtroService.obtenerOpcionesFiltros().subscribe({
+      next: (respuesta) => {
+        this.opcionesFiltro.set(respuesta);
+        this.cargandoFiltros.set(false);
+      },
+      error: () => {
+        this.cargandoFiltros.set(false);
+      }
+    });
+  }
+
+  cargarConsumo(filtros: FiltrosKpi = this.filtrosAplicados()): void {
     this.cargando.set(true);
     this.error.set(null);
 
-    this.consumoService.obtenerResumenGeneros().subscribe({
+    this.consumoService.obtenerResumenGeneros(filtros).subscribe({
       next: (respuesta) => {
         this.resumen.set(respuesta);
-        this.establecerSeleccionInicial(respuesta);
         this.cargando.set(false);
       },
       error: () => {
-        this.error.set('No se pudo cargar el análisis de consumo.');
+        this.error.set('No se pudo cargar el análisis de consumo por géneros.');
         this.cargando.set(false);
       }
     });
   }
 
-  actualizarSeleccionGeneros(valor: string[] | string | null | undefined): void {
-    if (Array.isArray(valor)) {
-      this.generosSeleccionados.set(valor);
-      return;
-    }
+  aplicarFiltros(): void {
+    const filtros: FiltrosKpi = {
+      anio: this.anioSeleccionado(),
+      pais: this.paisSeleccionado(),
+      continente: this.continenteSeleccionado(),
+      plan: this.planSeleccionado(),
+      tipoContenido: this.tipoContenidoSeleccionado()
+    };
 
-    if (typeof valor === 'string') {
-      this.generosSeleccionados.set([valor]);
-      return;
-    }
+    this.filtrosAplicados.set(filtros);
+    this.cargarConsumo(filtros);
+  }
 
-    this.generosSeleccionados.set([]);
+  limpiarFiltros(): void {
+    this.anioSeleccionado.set(null);
+    this.paisSeleccionado.set(null);
+    this.continenteSeleccionado.set(null);
+    this.planSeleccionado.set(null);
+    this.tipoContenidoSeleccionado.set(null);
+
+    const filtros: FiltrosKpi = {};
+    this.filtrosAplicados.set(filtros);
+    this.cargarConsumo(filtros);
+  }
+
+  actualizarAnio(valor: string | number | null | undefined): void {
+    this.anioSeleccionado.set(valor ? Number(valor) : null);
+  }
+
+  actualizarPais(valor: string | number | null | undefined): void {
+    this.paisSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarContinente(valor: string | number | null | undefined): void {
+    this.continenteSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarPlan(valor: string | number | null | undefined): void {
+    this.planSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarTipoContenido(valor: string | number | null | undefined): void {
+    this.tipoContenidoSeleccionado.set(valor ? String(valor) : null);
   }
 
   actualizarMetrica(valor: string | number | undefined): void {
@@ -259,14 +283,12 @@ export class ConsumoPage implements OnInit {
     }
   }
 
-  restablecerTopCinco(): void {
-    this.generosSeleccionados.set(
-      this.topCincoGeneral().map((genero) => genero.nombre)
-    );
+  obtenerGeneroLider(): ConsumoGenero | null {
+    return this.resumen()?.generosPorVisualizaciones?.[0] ?? null;
   }
 
-  obtenerPrimerGeneroGeneral(): GeneroConIndice | null {
-    return this.topCincoGeneral()[0] ?? null;
+  obtenerGeneroMayorHoras(): ConsumoGenero | null {
+    return this.resumen()?.generosPorHorasVistas?.[0] ?? null;
   }
 
   formatearNumero(valor: number): string {
@@ -277,63 +299,74 @@ export class ConsumoPage implements OnInit {
     return this.formatoDecimal.format(valor);
   }
 
+  obtenerPorcentajeGenero(genero: ConsumoGenero): string {
+    const total = this.totalVisualizaciones();
+
+    if (total === 0) {
+      return '0.00';
+    }
+
+    return this.formatearDecimal((genero.visualizaciones / total) * 100);
+  }
+
+  obtenerPorcentajeBarra(genero: ConsumoGenero): number {
+    const lider = this.obtenerGeneroLider();
+
+    if (!lider || lider.visualizaciones === 0) {
+      return 0;
+    }
+
+    return (genero.visualizaciones / lider.visualizaciones) * 100;
+  }
+
+  hayFiltrosAplicados(): boolean {
+    const filtros = this.filtrosAplicados();
+
+    return Boolean(
+      filtros.anio ||
+      filtros.pais ||
+      filtros.continente ||
+      filtros.plan ||
+      filtros.tipoContenido
+    );
+  }
+
+  obtenerResumenFiltros(): string {
+    const filtros = this.filtrosAplicados();
+    const activos: string[] = [];
+
+    if (filtros.anio) {
+      activos.push(`Año ${filtros.anio}`);
+    }
+
+    if (filtros.pais) {
+      activos.push(`País ${filtros.pais}`);
+    }
+
+    if (filtros.continente) {
+      activos.push(`Continente ${filtros.continente}`);
+    }
+
+    if (filtros.plan) {
+      activos.push(`Plan ${filtros.plan}`);
+    }
+
+    if (filtros.tipoContenido) {
+      activos.push(`Tipo ${filtros.tipoContenido}`);
+    }
+
+    return activos.length > 0 ? activos.join(' · ') : 'Panorama general sin filtros';
+  }
+
   obtenerLecturaEjecutiva(): string {
-    const generoPrincipal = this.obtenerPrimerGeneroGeneral();
+    const generoLider = this.obtenerGeneroLider();
+    const generoMayorHoras = this.obtenerGeneroMayorHoras();
+    const contexto = this.obtenerResumenFiltros().toLowerCase();
 
-    if (!generoPrincipal) {
-      return 'No hay información suficiente para generar una lectura ejecutiva.';
+    if (!generoLider || !generoMayorHoras) {
+      return 'No hay información suficiente para generar una lectura ejecutiva de consumo.';
     }
 
-    return `El género ${generoPrincipal.nombre} encabeza el ranking ejecutivo al combinar visualizaciones y horas vistas. Esto lo convierte en una categoría clave para recomendaciones, campañas de contenido y decisiones de catálogo.`;
-  }
-
-  obtenerDetalleIndice(genero: GeneroConIndice): string {
-    return `Índice ejecutivo: ${this.formatearDecimal(genero.indiceEjecutivo)} / 100`;
-  }
-
-  private establecerSeleccionInicial(respuesta: ResumenConsumoGeneros): void {
-    const generos = this.obtenerGenerosUnicos(respuesta);
-    const maxVisualizaciones = Math.max(...generos.map((genero) => genero.visualizaciones), 1);
-    const maxHoras = Math.max(...generos.map((genero) => genero.horasVistas), 1);
-
-    const topCinco = generos
-      .map((genero) => ({
-        ...genero,
-        indiceEjecutivo:
-          ((genero.visualizaciones / maxVisualizaciones) * 50) +
-          ((genero.horasVistas / maxHoras) * 50)
-      }))
-      .sort((a, b) => b.indiceEjecutivo - a.indiceEjecutivo)
-      .slice(0, 5)
-      .map((genero) => genero.nombre);
-
-    this.generosSeleccionados.set(topCinco);
-  }
-
-  private obtenerGenerosParaComparacion(datos: ResumenConsumoGeneros): ConsumoGenero[] {
-    const generos = this.obtenerGenerosUnicos(datos);
-    const seleccionados = this.generosSeleccionados();
-
-    if (seleccionados.length === 0) {
-      return this.topCincoGeneral();
-    }
-
-    return generos.filter((genero) => seleccionados.includes(genero.nombre));
-  }
-
-  private obtenerGenerosUnicos(datos: ResumenConsumoGeneros): ConsumoGenero[] {
-    const mapa = new Map<string, ConsumoGenero>();
-
-    for (const genero of datos.generosPorVisualizaciones) {
-      mapa.set(genero.nombre, genero);
-    }
-
-    for (const genero of datos.generosPorHorasVistas) {
-      if (!mapa.has(genero.nombre)) {
-        mapa.set(genero.nombre, genero);
-      }
-    }
-
-    return Array.from(mapa.values());
+    return `Bajo el contexto de ${contexto}, el género ${generoLider.nombre} lidera por visualizaciones, mientras que ${generoMayorHoras.nombre} concentra el mayor tiempo de consumo. Esto permite comparar preferencias de audiencia según periodo, mercado, plan o tipo de contenido.`;
   }
 }

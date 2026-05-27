@@ -3,6 +3,7 @@ package com.jose.streammetrics.service;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import com.jose.streammetrics.dto.FiltroKpiRequest;
 import com.jose.streammetrics.dto.ResumenConsumoGenerosDto;
 import com.jose.streammetrics.repository.ConsumoRepository;
 
@@ -15,11 +16,14 @@ public class ConsumoService {
         this.consumoRepository = consumoRepository;
     }
 
-    @Cacheable("consumoGeneros")
-    public ResumenConsumoGenerosDto obtenerResumenGeneros() {
+    @Cacheable(
+            value = "consumoGeneros",
+            key = "{#filtros.anio(), #filtros.pais(), #filtros.continente(), #filtros.plan(), #filtros.tipoContenido()}"
+    )
+    public ResumenConsumoGenerosDto obtenerResumenGeneros(FiltroKpiRequest filtros) {
         return new ResumenConsumoGenerosDto(
-                consumoRepository.obtenerTopGenerosPorVisualizaciones(),
-                consumoRepository.obtenerTopGenerosPorHorasVistas()
+                consumoRepository.obtenerGenerosPorVisualizaciones(filtros),
+                consumoRepository.obtenerGenerosPorHorasVistas(filtros)
         );
     }
 }
