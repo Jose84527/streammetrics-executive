@@ -2,10 +2,167 @@
 
 <ion-content class="ion-padding">
   <app-section-header
-    etiqueta="Catálogo"
+    etiqueta="Contenidos"
     titulo="Desempeño de contenidos"
-    descripcion="Evalúa películas y series según visualizaciones, horas vistas, calificación promedio y tasa de finalización."
+    descripcion="Analiza los títulos con mayor desempeño por visualizaciones, calificación y finalización. Usa filtros para revisar segmentos por año, mercado, plan, tipo de contenido o género."
   ></app-section-header>
+
+  <ion-card class="filtros-card">
+    <ion-accordion-group>
+      <ion-accordion value="filtros-contenidos">
+        <ion-item slot="header" lines="none" class="filtros-header-item">
+          <ion-label>
+            <div class="filtros-header-title">
+              <h2>Filtros de análisis</h2>
+
+              <ion-badge *ngIf="hayFiltrosAplicados()" color="primary">
+                Activos
+              </ion-badge>
+            </div>
+
+            <p>{{ obtenerResumenFiltros() }}</p>
+          </ion-label>
+        </ion-item>
+
+        <div slot="content" class="filtros-content">
+          <p class="descripcion-bloque">
+            Selecciona uno o varios criterios y presiona Aplicar filtros para recalcular el desempeño de contenidos.
+          </p>
+
+          <p class="nota-filtro">
+            Nota: el filtro geográfico trabaja por país o por continente. Si seleccionas uno, el otro se limpia automáticamente.
+          </p>
+
+          <div *ngIf="cargandoFiltros()" class="estado compacto">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando opciones de filtros...</p>
+          </div>
+
+          <ng-container *ngIf="opcionesFiltro() as opciones">
+            <section class="filtros-grid">
+              <ion-item>
+                <ion-label position="stacked">Año</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="anioSeleccionado()"
+                  (ionChange)="actualizarAnio($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let anio of opciones.anios"
+                    [value]="anio"
+                  >
+                    {{ anio }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">País</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="paisSeleccionado()"
+                  (ionChange)="actualizarPais($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let pais of opciones.paises"
+                    [value]="pais"
+                  >
+                    {{ pais }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Continente</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="continenteSeleccionado()"
+                  (ionChange)="actualizarContinente($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let continente of opciones.continentes"
+                    [value]="continente"
+                  >
+                    {{ continente }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Plan</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="planSeleccionado()"
+                  (ionChange)="actualizarPlan($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let plan of opciones.planes"
+                    [value]="plan"
+                  >
+                    {{ plan }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Tipo de contenido</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="tipoContenidoSeleccionado()"
+                  (ionChange)="actualizarTipoContenido($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let tipo of opciones.tiposContenido"
+                    [value]="tipo"
+                  >
+                    {{ tipo }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Género</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="generoSeleccionado()"
+                  (ionChange)="actualizarGenero($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let genero of opciones.generos"
+                    [value]="genero"
+                  >
+                    {{ genero }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </section>
+
+            <div class="acciones-filtros">
+              <ion-button fill="outline" size="small" (click)="limpiarFiltros()">
+                Limpiar filtros
+              </ion-button>
+
+              <ion-button size="small" (click)="aplicarFiltros()">
+                Aplicar filtros
+              </ion-button>
+            </div>
+          </ng-container>
+        </div>
+      </ion-accordion>
+    </ion-accordion-group>
+  </ion-card>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarContenidos()">
@@ -15,7 +172,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando desempeño de contenidos...</p>
+    <p>Calculando desempeño de contenidos...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -25,27 +182,27 @@
   <ng-container *ngIf="resumen() as datos">
     <section class="resumen-grid">
       <app-kpi-card
-        *ngIf="obtenerContenidoMasVisto() as contenido"
+        *ngIf="contenidoMasVisto() as contenido"
         titulo="Contenido más visto"
-        [valor]="contenido.titulo"
+        [valor]="acortarTitulo(contenido.titulo)"
         [detalle]="formatearNumero(contenido.visualizaciones) + ' visualizaciones · ' + formatearDecimal(contenido.horasVistas) + ' horas'"
         variante="positivo"
       ></app-kpi-card>
 
       <app-kpi-card
-        *ngIf="obtenerContenidoMejorCalificado() as contenido"
-        titulo="Mejor calificación"
-        [valor]="contenido.titulo"
+        *ngIf="contenidoMejorCalificado() as contenido"
+        titulo="Mejor calificado"
+        [valor]="acortarTitulo(contenido.titulo)"
         [detalle]="formatearDecimal(contenido.calificacionPromedio) + ' promedio · ' + formatearNumero(contenido.totalValoraciones) + ' valoraciones'"
         variante="normal"
       ></app-kpi-card>
 
       <app-kpi-card
-        *ngIf="obtenerContenidoMayorFinalizacion() as contenido"
+        *ngIf="contenidoMayorFinalizacion() as contenido"
         titulo="Mayor finalización"
-        [valor]="contenido.titulo"
+        [valor]="acortarTitulo(contenido.titulo)"
         [detalle]="formatearDecimal(contenido.tasaFinalizacion) + '% de finalización'"
-        variante="positivo"
+        [variante]="obtenerVariantePorFinalizacion(contenido.tasaFinalizacion)"
       ></app-kpi-card>
     </section>
 
@@ -58,12 +215,12 @@
     <section class="graficas-grid">
       <ion-card class="chart-card">
         <ion-card-header>
-          <ion-card-title>Comparativa por métrica</ion-card-title>
+          <ion-card-title>Comparativa de contenidos más vistos</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Cambia la métrica para identificar contenidos destacados por alcance, tiempo de consumo, calificación o finalización.
+            Cambia la métrica para comparar visualizaciones, horas vistas, calificación o finalización.
           </p>
 
           <ion-segment
@@ -79,11 +236,11 @@
             </ion-segment-button>
 
             <ion-segment-button value="calificacionPromedio">
-              <ion-label>Calif.</ion-label>
+              <ion-label>Calificación</ion-label>
             </ion-segment-button>
 
             <ion-segment-button value="tasaFinalizacion">
-              <ion-label>Final.</ion-label>
+              <ion-label>Finalización</ion-label>
             </ion-segment-button>
           </ion-segment>
 
@@ -91,7 +248,7 @@
             <canvas
               baseChart
               [type]="'bar'"
-              [data]="datosGraficaPrincipal()"
+              [data]="datosGraficaComparativa()"
               [options]="opcionesBarras"
             ></canvas>
           </div>
@@ -100,162 +257,113 @@
 
       <ion-card class="chart-card">
         <ion-card-header>
-          <ion-card-title>Calidad y finalización</ion-card-title>
+          <ion-card-title>Distribución por tipo de contenido</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Comparación entre calificación promedio y tasa de finalización normalizada para visualizar satisfacción y retención.
+            Participación por tipo de contenido dentro del ranking de títulos más vistos.
           </p>
 
-          <div class="chart-wrapper barras">
+          <div class="chart-wrapper dona">
             <canvas
               baseChart
-              [type]="'bar'"
-              [data]="datosGraficaCalidad()"
-              [options]="opcionesBarrasComparativas"
+              [type]="'doughnut'"
+              [data]="datosGraficaTipos()"
+              [options]="opcionesDona"
             ></canvas>
           </div>
         </ion-card-content>
       </ion-card>
     </section>
 
-    <ion-card class="ranking-card">
-      <ion-card-header>
-        <ion-card-title>Contenidos más vistos</ion-card-title>
-      </ion-card-header>
+    <section class="rankings-grid">
+      <ion-card class="ranking-card">
+        <ion-card-header>
+          <ion-card-title>Top contenidos más vistos</ion-card-title>
+        </ion-card-header>
 
-      <ion-card-content>
-        <p class="descripcion-bloque">
-          Ranking de contenidos con mayor cantidad de visualizaciones. Útil para identificar títulos con mayor alcance.
-        </p>
+        <ion-card-content>
+          <ion-list>
+            <ion-item
+              *ngFor="let contenido of contenidosMasVistos(); let i = index"
+              class="ranking-item"
+            >
+              <ion-badge slot="start" color="primary">
+                {{ i + 1 }}
+              </ion-badge>
 
-        <ion-list>
-          <ion-item
-            *ngFor="let contenido of datos.contenidosMasVistos; let i = index"
-            class="ranking-item"
-          >
-            <ion-badge slot="start" color="primary">
-              {{ i + 1 }}
-            </ion-badge>
-
-            <ion-label>
-              <div class="fila-ranking">
+              <ion-label>
                 <h2>{{ contenido.titulo }}</h2>
-                <strong>{{ formatearNumero(contenido.visualizaciones) }}</strong>
-              </div>
+                <p>
+                  {{ contenido.tipoContenido }} ·
+                  {{ formatearNumero(contenido.visualizaciones) }} visualizaciones ·
+                  {{ formatearDecimal(contenido.horasVistas) }} horas
+                </p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
 
-              <p class="subtitulo">
-                {{ contenido.tipoContenido }} · {{ formatearDecimal(contenido.horasVistas) }} horas vistas
-              </p>
+      <ion-card class="ranking-card">
+        <ion-card-header>
+          <ion-card-title>Top mejor calificados</ion-card-title>
+        </ion-card-header>
 
-              <div class="barra-progreso">
-                <div
-                  class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarraVisualizaciones(contenido)"
-                ></div>
-              </div>
+        <ion-card-content>
+          <ion-list>
+            <ion-item
+              *ngFor="let contenido of contenidosMejorCalificados(); let i = index"
+              class="ranking-item"
+            >
+              <ion-badge slot="start" color="success">
+                {{ i + 1 }}
+              </ion-badge>
 
-              <p>
-                Calificación {{ formatearDecimal(contenido.calificacionPromedio) }} ·
-                Finalización {{ formatearDecimal(contenido.tasaFinalizacion) }}%
-              </p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
-
-    <ion-card class="ranking-card">
-      <ion-card-header>
-        <ion-card-title>Contenidos mejor calificados</ion-card-title>
-      </ion-card-header>
-
-      <ion-card-content>
-        <p class="descripcion-bloque">
-          Ranking de títulos con mejor calificación promedio y suficiente volumen de visualizaciones.
-        </p>
-
-        <ion-list>
-          <ion-item
-            *ngFor="let contenido of datos.contenidosMejorCalificados; let i = index"
-            class="ranking-item"
-          >
-            <ion-badge slot="start" color="success">
-              {{ i + 1 }}
-            </ion-badge>
-
-            <ion-label>
-              <div class="fila-ranking">
+              <ion-label>
                 <h2>{{ contenido.titulo }}</h2>
-                <strong>{{ formatearDecimal(contenido.calificacionPromedio) }}</strong>
-              </div>
+                <p>
+                  {{ contenido.tipoContenido }} ·
+                  {{ formatearDecimal(contenido.calificacionPromedio) }} promedio ·
+                  {{ formatearNumero(contenido.totalValoraciones) }} valoraciones
+                </p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
 
-              <p class="subtitulo">
-                {{ contenido.tipoContenido }} · {{ formatearNumero(contenido.totalValoraciones) }} valoraciones
-              </p>
+      <ion-card class="ranking-card">
+        <ion-card-header>
+          <ion-card-title>Top mayor finalización</ion-card-title>
+        </ion-card-header>
 
-              <div class="barra-progreso positivo">
-                <div
-                  class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarraCalificacion(contenido)"
-                ></div>
-              </div>
+        <ion-card-content>
+          <ion-list>
+            <ion-item
+              *ngFor="let contenido of contenidosMayorFinalizacion(); let i = index"
+              class="ranking-item"
+            >
+              <ion-badge
+                slot="start"
+                [color]="obtenerVariantePorFinalizacion(contenido.tasaFinalizacion)"
+              >
+                {{ i + 1 }}
+              </ion-badge>
 
-              <p>
-                {{ formatearNumero(contenido.visualizaciones) }} visualizaciones ·
-                {{ formatearDecimal(contenido.horasVistas) }} horas
-              </p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
-
-    <ion-card class="ranking-card">
-      <ion-card-header>
-        <ion-card-title>Contenidos con mayor finalización</ion-card-title>
-      </ion-card-header>
-
-      <ion-card-content>
-        <p class="descripcion-bloque">
-          Ranking de contenidos que logran mayor proporción de reproducción completada.
-        </p>
-
-        <ion-list>
-          <ion-item
-            *ngFor="let contenido of datos.contenidosMayorFinalizacion; let i = index"
-            class="ranking-item"
-          >
-            <ion-badge slot="start" color="secondary">
-              {{ i + 1 }}
-            </ion-badge>
-
-            <ion-label>
-              <div class="fila-ranking">
+              <ion-label>
                 <h2>{{ contenido.titulo }}</h2>
-                <strong>{{ formatearDecimal(contenido.tasaFinalizacion) }}%</strong>
-              </div>
-
-              <p class="subtitulo">
-                {{ contenido.tipoContenido }} · {{ formatearNumero(contenido.visualizaciones) }} visualizaciones
-              </p>
-
-              <div class="barra-progreso secundaria">
-                <div
-                  class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarraFinalizacion(contenido)"
-                ></div>
-              </div>
-
-              <p>
-                Calificación {{ formatearDecimal(contenido.calificacionPromedio) }} ·
-                {{ formatearDecimal(contenido.horasVistas) }} horas vistas
-              </p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
+                <p>
+                  {{ contenido.tipoContenido }} ·
+                  {{ formatearDecimal(contenido.tasaFinalizacion) }}% finalización ·
+                  {{ formatearNumero(contenido.visualizaciones) }} visualizaciones
+                </p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+    </section>
   </ng-container>
 </ion-content>
