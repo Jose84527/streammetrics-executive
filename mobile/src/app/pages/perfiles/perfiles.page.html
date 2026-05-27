@@ -2,10 +2,149 @@
 
 <ion-content class="ion-padding">
   <app-section-header
-    etiqueta="Actividad de usuarios"
+    etiqueta="Perfiles"
     titulo="Actividad de perfiles"
-    descripcion="Identifica perfiles activos, perfiles en riesgo y posibles casos de abandono para orientar acciones de retención."
+    descripcion="Analiza la actividad, inactividad y riesgo de abandono de los perfiles. Usa filtros para revisar segmentos por año, mercado, plan o nivel de actividad."
   ></app-section-header>
+
+  <ion-card class="filtros-card">
+    <ion-accordion-group>
+      <ion-accordion value="filtros-perfiles">
+        <ion-item slot="header" lines="none" class="filtros-header-item">
+          <ion-label>
+            <div class="filtros-header-title">
+              <h2>Filtros de análisis</h2>
+
+              <ion-badge *ngIf="hayFiltrosAplicados()" color="primary">
+                Activos
+              </ion-badge>
+            </div>
+
+            <p>{{ obtenerResumenFiltros() }}</p>
+          </ion-label>
+        </ion-item>
+
+        <div slot="content" class="filtros-content">
+          <p class="descripcion-bloque">
+            Selecciona uno o varios criterios y presiona Aplicar filtros para recalcular el análisis de perfiles.
+          </p>
+
+          <p class="nota-filtro">
+            Nota: el filtro geográfico trabaja por país o por continente. Si seleccionas uno, el otro se limpia automáticamente.
+          </p>
+
+          <div *ngIf="cargandoFiltros()" class="estado compacto">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando opciones de filtros...</p>
+          </div>
+
+          <ng-container *ngIf="opcionesFiltro() as opciones">
+            <section class="filtros-grid">
+              <ion-item>
+                <ion-label position="stacked">Año</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="anioSeleccionado()"
+                  (ionChange)="actualizarAnio($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let anio of opciones.anios"
+                    [value]="anio"
+                  >
+                    {{ anio }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">País</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="paisSeleccionado()"
+                  (ionChange)="actualizarPais($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let pais of opciones.paises"
+                    [value]="pais"
+                  >
+                    {{ pais }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Continente</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="continenteSeleccionado()"
+                  (ionChange)="actualizarContinente($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let continente of opciones.continentes"
+                    [value]="continente"
+                  >
+                    {{ continente }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Plan</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="planSeleccionado()"
+                  (ionChange)="actualizarPlan($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let plan of opciones.planes"
+                    [value]="plan"
+                  >
+                    {{ plan }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Nivel de actividad</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="nivelActividadSeleccionado()"
+                  (ionChange)="actualizarNivelActividad($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let nivel of opciones.nivelesActividad"
+                    [value]="nivel"
+                  >
+                    {{ nivel }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </section>
+
+            <div class="acciones-filtros">
+              <ion-button fill="outline" size="small" (click)="limpiarFiltros()">
+                Limpiar filtros
+              </ion-button>
+
+              <ion-button size="small" (click)="aplicarFiltros()">
+                Aplicar filtros
+              </ion-button>
+            </div>
+          </ng-container>
+        </div>
+      </ion-accordion>
+    </ion-accordion-group>
+  </ion-card>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarPerfiles()">
@@ -15,7 +154,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando actividad de perfiles...</p>
+    <p>Calculando actividad de perfiles...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -25,32 +164,32 @@
   <ng-container *ngIf="resumen() as datos">
     <section class="resumen-grid">
       <app-kpi-card
+        *ngIf="obtenerNivelPrincipal() as nivel"
+        titulo="Nivel predominante"
+        [valor]="nivel.nivelActividad"
+        [detalle]="formatearNumero(nivel.totalPerfiles) + ' perfiles · ' + formatearDecimal(nivel.promedioDiasSinActividad) + ' días promedio'"
+        variante="positivo"
+      ></app-kpi-card>
+
+      <app-kpi-card
         titulo="Perfiles analizados"
-        [valor]="formatearNumero(totalPerfilesAnalizados())"
-        detalle="Total agrupado por niveles de actividad"
+        [valor]="formatearNumero(totalPerfiles())"
+        detalle="Total del contexto seleccionado"
         variante="normal"
       ></app-kpi-card>
 
       <app-kpi-card
-        titulo="Perfiles en riesgo"
-        [valor]="formatearNumero(perfilesEnRiesgo())"
-        detalle="Perfiles asociados a inactividad, riesgo o abandono"
-        variante="riesgo"
-      ></app-kpi-card>
-
-      <app-kpi-card
-        *ngIf="obtenerGrupoPrincipal() as grupo"
-        titulo="Grupo predominante"
-        [valor]="grupo.nivelActividad"
-        [detalle]="formatearNumero(grupo.totalPerfiles) + ' perfiles · ' + obtenerPorcentajeGrupo(grupo) + '% del total'"
-        [variante]="obtenerVarianteGrupo(grupo.nivelActividad)"
+        titulo="Promedio sin actividad"
+        [valor]="formatearDecimal(promedioGlobalDias()) + ' días'"
+        detalle="Promedio ponderado por cantidad de perfiles"
+        variante="advertencia"
       ></app-kpi-card>
     </section>
 
     <app-insight-card
       titulo="Lectura ejecutiva"
       [descripcion]="obtenerLecturaEjecutiva()"
-      nivel="advertencia"
+      nivel="informativo"
     ></app-insight-card>
 
     <ion-card class="ranking-card">
@@ -60,37 +199,34 @@
 
       <ion-card-content>
         <p class="descripcion-bloque">
-          Clasificación de perfiles según su comportamiento reciente. Esta información permite detectar oportunidades de retención y reactivación.
+          Segmentos de perfiles agrupados por actividad, riesgo o inactividad.
         </p>
 
         <ion-list>
           <ion-item
-            *ngFor="let grupo of gruposOrdenadosPorTotal(); let i = index"
+            *ngFor="let item of actividad(); let i = index"
             class="ranking-item"
           >
-            <ion-badge slot="start" [color]="obtenerColorGrupo(grupo.nivelActividad)">
+            <ion-badge slot="start" [color]="obtenerColorNivel(item.nivelActividad)">
               {{ i + 1 }}
             </ion-badge>
 
             <ion-label>
               <div class="fila-ranking">
-                <h2>{{ grupo.nivelActividad }}</h2>
-                <strong>{{ obtenerPorcentajeGrupo(grupo) }}%</strong>
+                <h2>{{ item.nivelActividad }}</h2>
+                <strong>{{ obtenerPorcentajePerfil(item) }}%</strong>
               </div>
 
-              <div
-                class="barra-progreso"
-                [class]="obtenerVarianteGrupo(grupo.nivelActividad)"
-              >
+              <div class="barra-progreso">
                 <div
                   class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarra(grupo)"
+                  [style.width.%]="obtenerPorcentajeBarra(item)"
                 ></div>
               </div>
 
               <p>
-                {{ formatearNumero(grupo.totalPerfiles) }} perfiles ·
-                {{ formatearDecimal(grupo.promedioDiasSinActividad) }} días promedio sin actividad
+                {{ formatearNumero(item.totalPerfiles) }} perfiles ·
+                {{ formatearDecimal(item.promedioDiasSinActividad) }} días promedio sin actividad
               </p>
             </ion-label>
           </ion-item>
@@ -106,7 +242,7 @@
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Distribución general de perfiles según su nivel de actividad.
+            Distribución porcentual de perfiles por nivel de actividad.
           </p>
 
           <div class="chart-wrapper dona">
@@ -122,19 +258,32 @@
 
       <ion-card class="chart-card">
         <ion-card-header>
-          <ion-card-title>Promedio de inactividad</ion-card-title>
+          <ion-card-title>Comparativa de perfiles</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Comparación del promedio de días sin actividad por nivel de perfil.
+            Cambia la métrica para comparar cantidad de perfiles o días promedio sin actividad.
           </p>
+
+          <ion-segment
+            [value]="metricaGrafica()"
+            (ionChange)="actualizarMetrica($event.detail.value)"
+          >
+            <ion-segment-button value="totalPerfiles">
+              <ion-label>Perfiles</ion-label>
+            </ion-segment-button>
+
+            <ion-segment-button value="promedioDias">
+              <ion-label>Días sin actividad</ion-label>
+            </ion-segment-button>
+          </ion-segment>
 
           <div class="chart-wrapper barras">
             <canvas
               baseChart
               [type]="'bar'"
-              [data]="datosGraficaInactividad()"
+              [data]="datosGraficaBarras()"
               [options]="opcionesBarras"
             ></canvas>
           </div>
@@ -149,58 +298,23 @@
 
       <ion-card-content>
         <p class="descripcion-bloque">
-          Recomendaciones operativas generadas a partir del nivel de actividad de los perfiles.
+          Recomendaciones operativas asociadas a cada grupo de actividad.
         </p>
 
         <ion-list>
           <ion-item
-            *ngFor="let grupo of datos.actividadPerfiles"
-            class="accion-item"
-          >
-            <ion-badge slot="start" [color]="obtenerColorGrupo(grupo.nivelActividad)">
-              {{ grupo.nivelActividad }}
-            </ion-badge>
-
-            <ion-label>
-              <h2>{{ grupo.accionSugerida }}</h2>
-              <p>
-                {{ formatearNumero(grupo.totalPerfiles) }} perfiles asociados ·
-                {{ formatearDecimal(grupo.promedioDiasSinActividad) }} días promedio sin actividad
-              </p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
-
-    <ion-card class="ranking-card">
-      <ion-card-header>
-        <ion-card-title>Mayor inactividad promedio</ion-card-title>
-      </ion-card-header>
-
-      <ion-card-content>
-        <p class="descripcion-bloque">
-          Grupos ordenados por promedio de días sin actividad, útiles para priorizar campañas de reactivación.
-        </p>
-
-        <ion-list>
-          <ion-item
-            *ngFor="let grupo of gruposOrdenadosPorInactividad(); let i = index"
+            *ngFor="let item of actividad()"
             class="ranking-item compacto"
           >
-            <ion-badge slot="start" [color]="obtenerColorGrupo(grupo.nivelActividad)">
-              {{ i + 1 }}
+            <ion-badge slot="start" [color]="obtenerColorNivel(item.nivelActividad)">
+              {{ item.nivelActividad }}
             </ion-badge>
 
             <ion-label>
-              <div class="fila-ranking">
-                <h2>{{ grupo.nivelActividad }}</h2>
-                <strong>{{ formatearDecimal(grupo.promedioDiasSinActividad) }} días</strong>
-              </div>
-
+              <h2>{{ item.accionSugerida }}</h2>
               <p>
-                {{ formatearNumero(grupo.totalPerfiles) }} perfiles ·
-                {{ grupo.accionSugerida }}
+                {{ formatearNumero(item.totalPerfiles) }} perfiles involucrados ·
+                {{ formatearDecimal(item.promedioDiasSinActividad) }} días promedio sin actividad
               </p>
             </ion-label>
           </ion-item>

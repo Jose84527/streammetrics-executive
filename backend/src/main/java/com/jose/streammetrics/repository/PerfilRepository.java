@@ -1,11 +1,14 @@
 package com.jose.streammetrics.repository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import com.jose.streammetrics.dto.ActividadPerfilDto;
+import com.jose.streammetrics.dto.FiltroKpiRequest;
 
 @Repository
 public class PerfilRepository {
@@ -16,7 +19,9 @@ public class PerfilRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<ActividadPerfilDto> obtenerActividadPerfiles() {
+    public List<ActividadPerfilDto> obtenerActividadPerfiles(FiltroKpiRequest filtros) {
+        ConsultaFiltrada consulta = construirConsultaBase(filtros);
+
         String sql = """
                 WITH perfiles_unicos AS (
                     SELECT
@@ -25,9 +30,7 @@ public class PerfilRepository {
                         MAX(dias_sin_actividad) AS dias_sin_actividad,
                         MAX(accion_sugerida) AS accion_sugerida
                     FROM analisis_streaming_kpis
-                    WHERE id_perfil IS NOT NULL
-                      AND nivel_actividad_perfil IS NOT NULL
-                      AND nivel_actividad_perfil <> ''
+                    %s
                     GROUP BY id_perfil
                 )
                 SELECT
@@ -38,13 +41,79 @@ public class PerfilRepository {
                 FROM perfiles_unicos
                 GROUP BY nivel_actividad, accion_sugerida
                 ORDER BY total_perfiles DESC
-                """;
+                """.formatted(consulta.where());
 
-        return jdbcTemplate.query(sql, (resultado, numeroFila) -> new ActividadPerfilDto(
-                resultado.getString("nivel_actividad"),
-                resultado.getLong("total_perfiles"),
-                resultado.getBigDecimal("promedio_dias_sin_actividad"),
-                resultado.getString("accion_sugerida")
-        ));
+        return jdbcTemplate.query(
+                sql,
+                consulta.parametros().toArray(),
+                (resultado, numeroFila) -> new ActividadPerfilDto(
+                        resultado.getString("nivel_actividad"),
+                        resultado.getLong("total_perfiles"),
+                        resultado.getBigDecimal("promedio_dias_sin_actividad"),
+                        resultado.getString("accion_sugerida")
+                )
+        );
+    }
+
+    private ConsultaFiltrada construirConsultaBase(FiltroKpiRequest filtros) {
+        StringBuilder where = new StringBuilder("""
+                WHERE id_perfil IS NOT NULL
+                  AND nivel_actividad_perfil IS NOT NULL
+                  AND nivel_actividad_perfil <> ''
+                """);
+
+        List<Object> parametros = new ArrayList<>();
+
+        if (filtros == null) {
+            return new ConsultaFiltrada(where.toString(), parametros);
+        }
+
+        if (filtros.anio() != null) {
+            where.append("""
+                    
+                      AND anio = ?
+                    """);
+            parametros.add(filtros.anio());
+        }
+
+        if (StringUtils.hasText(filtros.pais())) {
+            where.append("""
+                    
+                      AND pais_usuario = ?
+                    """);
+            parametros.add(filtros.pais().trim());
+        }
+
+        if (StringUtils.hasText(filtros.continente())) {
+            where.append("""
+                    
+                      AND continente_usuario = ?
+                    """);
+            parametros.add(filtros.continente().trim());
+        }
+
+        if (StringUtils.hasText(filtros.plan())) {
+            where.append("""
+                    
+                      AND nombre_plan = ?
+                    """);
+            parametros.add(filtros.plan().trim());
+        }
+
+        if (StringUtils.hasText(filtros.nivelActividad())) {
+            where.append("""
+                    
+                      AND nivel_actividad_perfil = ?
+                    """);
+            parametros.add(filtros.nivelActividad().trim());
+        }
+
+        return new ConsultaFiltrada(where.toString(), parametros);
+    }
+
+    private record ConsultaFiltrada(
+            String where,
+            List<Object> parametros
+    ) {
     }
 }

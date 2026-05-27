@@ -4,6 +4,13 @@
   margin-bottom: 0.75rem;
 }
 
+.acciones-filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
 .estado {
   display: flex;
   align-items: center;
@@ -12,10 +19,61 @@
   color: var(--ion-color-medium);
 }
 
+.estado.compacto {
+  margin: 0.5rem 0;
+}
+
 .mensaje-error {
   margin: 1rem 0;
 }
 
+.filtros-card,
+.ranking-card,
+.chart-card {
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.filtros-card {
+  overflow: hidden;
+  border-left: 5px solid var(--ion-color-primary);
+  margin-bottom: 1rem;
+}
+
+.filtros-header-item {
+  --padding-start: 1rem;
+  --inner-padding-end: 0.75rem;
+  --background: transparent;
+
+  ion-label {
+    margin: 0.8rem 0;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0.3rem 0 0;
+    color: var(--ion-color-medium);
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+}
+
+.filtros-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filtros-content {
+  padding: 0 1rem 1rem;
+}
+
+.filtros-grid,
 .resumen-grid,
 .graficas-grid {
   display: grid;
@@ -31,18 +89,18 @@
   font-size: 0.92rem;
 }
 
-.ranking-card,
-.chart-card {
-  border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+.nota-filtro {
+  margin: -0.35rem 0 1rem;
+  color: var(--ion-color-medium);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 ion-list {
   background: transparent;
 }
 
-.ranking-item,
-.accion-item {
+.ranking-item {
   --padding-start: 0;
   --inner-padding-end: 0;
   margin-bottom: 0.6rem;
@@ -85,24 +143,6 @@ ion-list {
   }
 }
 
-.barra-progreso.positivo .barra-relleno {
-  background: var(--ion-color-success);
-}
-
-.barra-progreso.advertencia .barra-relleno {
-  background: var(--ion-color-warning);
-}
-
-.barra-progreso.riesgo .barra-relleno {
-  background: var(--ion-color-danger);
-}
-
-ion-label h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
 ion-label p {
   margin: 0;
   color: var(--ion-color-medium);
@@ -120,10 +160,23 @@ ion-label p {
 }
 
 .chart-wrapper.barras {
-  height: 360px;
+  height: 340px;
+}
+
+ion-segment {
+  margin-bottom: 1rem;
 }
 
 @media (min-width: 768px) {
+  .acciones-filtros {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .filtros-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
   .resumen-grid {
     grid-template-columns: repeat(3, 1fr);
   }
