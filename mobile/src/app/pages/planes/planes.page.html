@@ -2,10 +2,145 @@
 
 <ion-content class="ion-padding">
   <app-section-header
-    etiqueta="Suscripciones"
+    etiqueta="Planes"
     titulo="Consumo por planes"
-    descripcion="Compara qué planes de suscripción concentran mayor actividad y tiempo de visualización."
+    descripcion="Compara el comportamiento de los planes de suscripción según visualizaciones y horas vistas. Usa filtros para analizar mercados, años, géneros o tipos de contenido."
   ></app-section-header>
+
+  <ion-card class="filtros-card">
+    <ion-accordion-group>
+      <ion-accordion value="filtros-planes">
+        <ion-item slot="header" lines="none" class="filtros-header-item">
+          <ion-label>
+            <div class="filtros-header-title">
+              <h2>Filtros de análisis</h2>
+
+              <ion-badge *ngIf="hayFiltrosAplicados()" color="primary">
+                Activos
+              </ion-badge>
+            </div>
+
+            <p>{{ obtenerResumenFiltros() }}</p>
+          </ion-label>
+        </ion-item>
+
+        <div slot="content" class="filtros-content">
+          <p class="nota-filtro">
+            Nota: el filtro geográfico trabaja por país o por continente. Si seleccionas uno, el otro se limpia automáticamente.
+          </p>
+
+          <div *ngIf="cargandoFiltros()" class="estado compacto">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando opciones de filtros...</p>
+          </div>
+
+          <ng-container *ngIf="opcionesFiltro() as opciones">
+            <section class="filtros-grid">
+              <ion-item>
+                <ion-label position="stacked">Año</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="anioSeleccionado()"
+                  (ionChange)="actualizarAnio($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let anio of opciones.anios"
+                    [value]="anio"
+                  >
+                    {{ anio }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">País</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="paisSeleccionado()"
+                  (ionChange)="actualizarPais($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let pais of opciones.paises"
+                    [value]="pais"
+                  >
+                    {{ pais }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Continente</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="continenteSeleccionado()"
+                  (ionChange)="actualizarContinente($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let continente of opciones.continentes"
+                    [value]="continente"
+                  >
+                    {{ continente }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Tipo de contenido</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="tipoContenidoSeleccionado()"
+                  (ionChange)="actualizarTipoContenido($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let tipo of opciones.tiposContenido"
+                    [value]="tipo"
+                  >
+                    {{ tipo }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Género</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="generoSeleccionado()"
+                  (ionChange)="actualizarGenero($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let genero of opciones.generos"
+                    [value]="genero"
+                  >
+                    {{ genero }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </section>
+
+            <div class="acciones-filtros">
+              <ion-button fill="outline" size="small" (click)="limpiarFiltros()">
+                Limpiar filtros
+              </ion-button>
+
+              <ion-button size="small" (click)="aplicarFiltros()">
+                Aplicar filtros
+              </ion-button>
+            </div>
+          </ng-container>
+        </div>
+      </ion-accordion>
+    </ion-accordion-group>
+  </ion-card>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarPlanes()">
@@ -15,7 +150,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando análisis de planes...</p>
+    <p>Calculando consumo por planes...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -35,14 +170,14 @@
       <app-kpi-card
         titulo="Visualizaciones analizadas"
         [valor]="formatearNumero(totalVisualizaciones())"
-        detalle="Total acumulado de consumo por planes"
+        detalle="Total del contexto seleccionado"
         variante="normal"
       ></app-kpi-card>
 
       <app-kpi-card
         titulo="Horas vistas"
         [valor]="formatearDecimal(totalHorasVistas())"
-        detalle="Tiempo total de visualización agrupado por plan"
+        detalle="Tiempo total de consumo del contexto"
         variante="normal"
       ></app-kpi-card>
     </section>
@@ -53,57 +188,15 @@
       nivel="informativo"
     ></app-insight-card>
 
-    <ion-card class="ranking-card">
-      <ion-card-header>
-        <ion-card-title>Ranking de planes por consumo</ion-card-title>
-      </ion-card-header>
-
-      <ion-card-content>
-        <p class="descripcion-bloque">
-          Comparación de los planes de suscripción según visualizaciones, horas vistas y participación dentro del consumo total.
-        </p>
-
-        <ion-list>
-          <ion-item
-            *ngFor="let plan of datos.planes; let i = index"
-            class="ranking-item"
-          >
-            <ion-badge slot="start" color="primary">
-              {{ i + 1 }}
-            </ion-badge>
-
-            <ion-label>
-              <div class="fila-ranking">
-                <h2>{{ plan.nombre }}</h2>
-                <strong>{{ obtenerPorcentajeVisualizaciones(plan) }}%</strong>
-              </div>
-
-              <div class="barra-progreso">
-                <div
-                  class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarra(plan)"
-                ></div>
-              </div>
-
-              <p>
-                {{ formatearNumero(plan.visualizaciones) }} visualizaciones ·
-                {{ formatearDecimal(plan.horasVistas) }} horas vistas
-              </p>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
-
     <section class="graficas-grid">
       <ion-card class="chart-card">
         <ion-card-header>
-          <ion-card-title>Distribución por plan</ion-card-title>
+          <ion-card-title>Participación por plan</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Participación de cada plan dentro del consumo total medido por visualizaciones.
+            Distribución porcentual del consumo entre los planes de suscripción.
           </p>
 
           <div class="chart-wrapper dona">
@@ -124,7 +217,7 @@
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Cambia la métrica para comparar visualizaciones u horas vistas por plan de suscripción.
+            Cambia la métrica para comparar visualizaciones u horas vistas entre planes.
           </p>
 
           <ion-segment
@@ -151,5 +244,47 @@
         </ion-card-content>
       </ion-card>
     </section>
+
+    <ion-card class="ranking-card">
+      <ion-card-header>
+        <ion-card-title>Detalle completo por plan</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="descripcion-bloque">
+          Lista completa de planes encontrados para el contexto seleccionado.
+        </p>
+
+        <ion-list>
+          <ion-item
+            *ngFor="let plan of planes(); let i = index"
+            class="ranking-item"
+          >
+            <ion-badge slot="start" color="primary">
+              {{ i + 1 }}
+            </ion-badge>
+
+            <ion-label>
+              <div class="fila-ranking">
+                <h2>{{ plan.nombre }}</h2>
+                <strong>{{ obtenerPorcentajePlan(plan) }}%</strong>
+              </div>
+
+              <div class="barra-progreso">
+                <div
+                  class="barra-relleno"
+                  [style.width.%]="obtenerPorcentajeBarra(plan)"
+                ></div>
+              </div>
+
+              <p>
+                {{ formatearNumero(plan.visualizaciones) }} visualizaciones ·
+                {{ formatearDecimal(plan.horasVistas) }} horas vistas
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
   </ng-container>
 </ion-content>

@@ -261,13 +261,25 @@ export class ConsumoPage implements OnInit {
     this.anioSeleccionado.set(valor ? Number(valor) : null);
   }
 
-  actualizarPais(valor: string | number | null | undefined): void {
-    this.paisSeleccionado.set(valor ? String(valor) : null);
-  }
+actualizarPais(valor: string | number | null | undefined): void {
+  const pais = valor ? String(valor) : null;
 
-  actualizarContinente(valor: string | number | null | undefined): void {
-    this.continenteSeleccionado.set(valor ? String(valor) : null);
+  this.paisSeleccionado.set(pais);
+
+  if (pais) {
+    this.continenteSeleccionado.set(null);
   }
+}
+
+actualizarContinente(valor: string | number | null | undefined): void {
+  const continente = valor ? String(valor) : null;
+
+  this.continenteSeleccionado.set(continente);
+
+  if (continente) {
+    this.paisSeleccionado.set(null);
+  }
+}
 
   actualizarPlan(valor: string | number | null | undefined): void {
     this.planSeleccionado.set(valor ? String(valor) : null);
