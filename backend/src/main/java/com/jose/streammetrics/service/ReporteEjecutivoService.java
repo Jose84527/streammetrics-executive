@@ -21,18 +21,15 @@ import com.jose.streammetrics.dto.ResumenReporteEjecutivoDto;
 public class ReporteEjecutivoService {
 
     private final DashboardService dashboardService;
-    private final MetaService metaService;
     private final PerfilService perfilService;
     private final ContenidoService contenidoService;
 
     public ReporteEjecutivoService(
             DashboardService dashboardService,
-            MetaService metaService,
             PerfilService perfilService,
             ContenidoService contenidoService
     ) {
         this.dashboardService = dashboardService;
-        this.metaService = metaService;
         this.perfilService = perfilService;
         this.contenidoService = contenidoService;
     }
@@ -40,7 +37,11 @@ public class ReporteEjecutivoService {
     @Cacheable("reporteEjecutivoResumen")
     public ResumenReporteEjecutivoDto obtenerResumenReporteEjecutivo() {
         ResumenDashboardDto resumenDashboard = dashboardService.obtenerResumenDashboard();
-        ResumenCumplimientoMetasDto resumenMetas = metaService.obtenerCumplimientoMetas();
+
+        // Módulo de metas deshabilitado temporalmente.
+        // Después lo conectamos nuevamente cuando terminemos de ajustar los filtros de Metas.
+        ResumenCumplimientoMetasDto resumenMetas = new ResumenCumplimientoMetasDto(List.of());
+
         ResumenActividadPerfilesDto resumenPerfiles = perfilService.obtenerActividadPerfiles();
         ResumenDesempenoContenidosDto resumenContenidos = contenidoService.obtenerDesempenoContenidos();
 

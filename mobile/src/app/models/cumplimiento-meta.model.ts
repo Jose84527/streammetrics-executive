@@ -1,5 +1,3 @@
-export type EstadoCumplimiento = 'ALTO' | 'MEDIO' | 'BAJO' | 'SIN_META';
-
 export interface CumplimientoMeta {
   pais: string;
   visualizacionesReales: number;
@@ -8,7 +6,7 @@ export interface CumplimientoMeta {
   horasReales: number;
   metaHoras: number;
   porcentajeCumplimientoHoras: number;
-  estado: EstadoCumplimiento;
+  estado: string;
 }
 
 export interface ResumenCumplimientoMetas {

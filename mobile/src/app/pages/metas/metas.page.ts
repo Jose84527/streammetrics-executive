@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import {
+  IonAccordion,
+  IonAccordionGroup,
   IonBadge,
   IonButton,
   IonCard,
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonChip,
   IonContent,
   IonItem,
   IonLabel,
@@ -22,11 +23,9 @@ import {
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartOptions } from 'chart.js';
 
-import {
-  CumplimientoMeta,
-  EstadoCumplimiento,
-  ResumenCumplimientoMetas
-} from '../../models/cumplimiento-meta.model';
+import { CumplimientoMeta, ResumenCumplimientoMetas } from '../../models/cumplimiento-meta.model';
+import { FiltrosKpi, OpcionesFiltro } from '../../models/filtros-kpi.model';
+import { FiltroService } from '../../services/filtro.service';
 import { MetaService } from '../../services/meta.service';
 import { InsightCardComponent } from '../../shared/components/insight-card/insight-card.component';
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
@@ -59,15 +58,17 @@ type MetricaMeta = 'visualizaciones' | 'horas';
     IonItem,
     IonLabel,
     IonBadge,
-    IonChip,
+    IonSegment,
+    IonSegmentButton,
     IonSelect,
     IonSelectOption,
-    IonSegment,
-    IonSegmentButton
+    IonAccordion,
+    IonAccordionGroup
   ]
 })
 export class MetasPage implements OnInit {
   private readonly metaService = inject(MetaService);
+  private readonly filtroService = inject(FiltroService);
 
   private readonly formatoNumero = new Intl.NumberFormat('es-MX');
   private readonly formatoDecimal = new Intl.NumberFormat('es-MX', {
@@ -76,11 +77,22 @@ export class MetasPage implements OnInit {
   });
 
   resumen = signal<ResumenCumplimientoMetas | null>(null);
+  opcionesFiltro = signal<OpcionesFiltro | null>(null);
+
   cargando = signal<boolean>(false);
+  cargandoFiltros = signal<boolean>(false);
   error = signal<string | null>(null);
 
-  paisesSeleccionados = signal<string[]>([]);
   metricaGrafica = signal<MetricaMeta>('visualizaciones');
+
+  anioSeleccionado = signal<number | null>(null);
+  paisSeleccionado = signal<string | null>(null);
+  continenteSeleccionado = signal<string | null>(null);
+  planSeleccionado = signal<string | null>(null);
+  tipoContenidoSeleccionado = signal<string | null>(null);
+  prioridadMercadoSeleccionada = signal<string | null>(null);
+
+  filtrosAplicados = signal<FiltrosKpi>({});
 
   readonly opcionesDona: ChartOptions<'doughnut'> = {
     responsive: true,
@@ -101,7 +113,7 @@ export class MetasPage implements OnInit {
     indexAxis: 'y',
     plugins: {
       legend: {
-        position: 'bottom'
+        display: false
       },
       tooltip: {
         enabled: true
@@ -109,7 +121,8 @@ export class MetasPage implements OnInit {
     },
     scales: {
       x: {
-        beginAtZero: true
+        beginAtZero: true,
+        max: 130
       },
       y: {
         ticks: {
@@ -119,95 +132,131 @@ export class MetasPage implements OnInit {
     }
   };
 
-  paisesOrdenadosPorCumplimiento = computed<CumplimientoMeta[]>(() => {
-    return [...(this.resumen()?.cumplimientoPorPais ?? [])].sort(
-      (a, b) =>
-        a.porcentajeCumplimientoVisualizaciones -
-        b.porcentajeCumplimientoVisualizaciones
+  cumplimiento = computed<CumplimientoMeta[]>(() => {
+    return this.resumen()?.cumplimientoPorPais ?? [];
+  });
+
+  mercadosCriticos = computed<CumplimientoMeta[]>(() => {
+    return this.cumplimiento().slice(0, 5);
+  });
+
+  mercadosGrafica = computed<CumplimientoMeta[]>(() => {
+    return this.cumplimiento().slice(0, 10);
+  });
+
+  totalVisualizacionesReales = computed<number>(() => {
+    return this.cumplimiento().reduce(
+      (total, item) => total + item.visualizacionesReales,
+      0
     );
   });
 
-  topPaisesCriticos = computed<CumplimientoMeta[]>(() => {
-    return this.paisesOrdenadosPorCumplimiento().slice(0, 5);
+  totalMetaVisualizaciones = computed<number>(() => {
+    return this.cumplimiento().reduce(
+      (total, item) => total + item.metaVisualizaciones,
+      0
+    );
   });
 
-  mercadosAlto = computed<number>(() => this.contarPorEstado('ALTO'));
-  mercadosMedio = computed<number>(() => this.contarPorEstado('MEDIO'));
-  mercadosBajo = computed<number>(() => this.contarPorEstado('BAJO'));
-  mercadosSinMeta = computed<number>(() => this.contarPorEstado('SIN_META'));
+  totalHorasReales = computed<number>(() => {
+    return this.cumplimiento().reduce(
+      (total, item) => total + item.horasReales,
+      0
+    );
+  });
+
+  totalMetaHoras = computed<number>(() => {
+    return this.cumplimiento().reduce(
+      (total, item) => total + item.metaHoras,
+      0
+    );
+  });
+
+  cumplimientoGlobalVisualizaciones = computed<number>(() => {
+    const meta = this.totalMetaVisualizaciones();
+
+    if (meta === 0) {
+      return 0;
+    }
+
+    return (this.totalVisualizacionesReales() / meta) * 100;
+  });
+
+  cumplimientoGlobalHoras = computed<number>(() => {
+    const meta = this.totalMetaHoras();
+
+    if (meta === 0) {
+      return 0;
+    }
+
+    return (this.totalHorasReales() / meta) * 100;
+  });
 
   datosGraficaEstados = computed<ChartData<'doughnut'>>(() => {
+    const conteo = new Map<string, number>();
+
+    for (const item of this.cumplimiento()) {
+      const estado = item.estado || 'SIN_ESTADO';
+      conteo.set(estado, (conteo.get(estado) ?? 0) + 1);
+    }
+
     return {
-      labels: ['Alto', 'Medio', 'Bajo', 'Sin meta'],
+      labels: Array.from(conteo.keys()),
       datasets: [
         {
-          data: [
-            this.mercadosAlto(),
-            this.mercadosMedio(),
-            this.mercadosBajo(),
-            this.mercadosSinMeta()
-          ]
+          data: Array.from(conteo.values())
         }
       ]
     };
   });
 
-  datosGraficaComparativa = computed<ChartData<'bar'>>(() => {
-    const datos = this.resumen();
-
-    if (!datos) {
-      return {
-        labels: [],
-        datasets: []
-      };
-    }
-
-    const paises = this.obtenerPaisesParaComparacion(datos);
+  datosGraficaCumplimiento = computed<ChartData<'bar'>>(() => {
     const metrica = this.metricaGrafica();
-
-    if (metrica === 'visualizaciones') {
-      return {
-        labels: paises.map((pais) => pais.pais),
-        datasets: [
-          {
-            label: 'Visualizaciones reales',
-            data: paises.map((pais) => pais.visualizacionesReales)
-          },
-          {
-            label: 'Meta visualizaciones',
-            data: paises.map((pais) => pais.metaVisualizaciones)
-          }
-        ]
-      };
-    }
+    const datos = this.mercadosGrafica();
 
     return {
-      labels: paises.map((pais) => pais.pais),
+      labels: datos.map((item) => item.pais),
       datasets: [
         {
-          label: 'Horas reales',
-          data: paises.map((pais) => pais.horasReales)
-        },
-        {
-          label: 'Meta horas',
-          data: paises.map((pais) => pais.metaHoras)
+          label: metrica === 'visualizaciones'
+            ? 'Cumplimiento visualizaciones'
+            : 'Cumplimiento horas',
+          data: datos.map((item) =>
+            metrica === 'visualizaciones'
+              ? item.porcentajeCumplimientoVisualizaciones
+              : item.porcentajeCumplimientoHoras
+          )
         }
       ]
     };
   });
 
   ngOnInit(): void {
+    this.cargarOpcionesFiltros();
     this.cargarMetas();
   }
 
-  cargarMetas(): void {
+  cargarOpcionesFiltros(): void {
+    this.cargandoFiltros.set(true);
+
+    this.filtroService.obtenerOpcionesFiltros().subscribe({
+      next: (respuesta) => {
+        this.opcionesFiltro.set(respuesta);
+        this.cargandoFiltros.set(false);
+      },
+      error: () => {
+        this.cargandoFiltros.set(false);
+      }
+    });
+  }
+
+  cargarMetas(filtros: FiltrosKpi = this.filtrosAplicados()): void {
     this.cargando.set(true);
     this.error.set(null);
 
-    this.metaService.obtenerCumplimientoMetas().subscribe({
+    this.metaService.obtenerCumplimientoMetas(filtros).subscribe({
       next: (respuesta) => {
         this.resumen.set(respuesta);
-        this.establecerSeleccionInicial(respuesta);
         this.cargando.set(false);
       },
       error: () => {
@@ -217,32 +266,74 @@ export class MetasPage implements OnInit {
     });
   }
 
-  obtenerMercadoCritico(): CumplimientoMeta | null {
-    return this.paisesOrdenadosPorCumplimiento()[0] ?? null;
+  aplicarFiltros(): void {
+    const pais = this.paisSeleccionado();
+    const continente = pais ? null : this.continenteSeleccionado();
+
+    if (pais) {
+      this.continenteSeleccionado.set(null);
+    }
+
+    const filtros: FiltrosKpi = {
+      anio: this.anioSeleccionado(),
+      pais,
+      continente,
+      plan: this.planSeleccionado(),
+      tipoContenido: this.tipoContenidoSeleccionado(),
+      prioridadMercado: this.prioridadMercadoSeleccionada()
+    };
+
+    this.filtrosAplicados.set(filtros);
+    this.cargarMetas(filtros);
   }
 
-  obtenerMejorMercado(): CumplimientoMeta | null {
-    const paises = this.paisesOrdenadosPorCumplimiento();
+  limpiarFiltros(): void {
+    this.anioSeleccionado.set(null);
+    this.paisSeleccionado.set(null);
+    this.continenteSeleccionado.set(null);
+    this.planSeleccionado.set(null);
+    this.tipoContenidoSeleccionado.set(null);
+    this.prioridadMercadoSeleccionada.set(null);
 
-    if (paises.length === 0) {
-      return null;
-    }
-
-    return paises[paises.length - 1];
+    const filtros: FiltrosKpi = {};
+    this.filtrosAplicados.set(filtros);
+    this.cargarMetas(filtros);
   }
 
-  actualizarSeleccionPaises(valor: string[] | string | null | undefined): void {
-    if (Array.isArray(valor)) {
-      this.paisesSeleccionados.set(valor);
-      return;
-    }
+  actualizarAnio(valor: string | number | null | undefined): void {
+    this.anioSeleccionado.set(valor ? Number(valor) : null);
+  }
 
-    if (typeof valor === 'string') {
-      this.paisesSeleccionados.set([valor]);
-      return;
-    }
+  actualizarPais(valor: string | number | null | undefined): void {
+    const pais = valor ? String(valor) : null;
 
-    this.paisesSeleccionados.set([]);
+    this.paisSeleccionado.set(pais);
+
+    if (pais) {
+      this.continenteSeleccionado.set(null);
+    }
+  }
+
+  actualizarContinente(valor: string | number | null | undefined): void {
+    const continente = valor ? String(valor) : null;
+
+    this.continenteSeleccionado.set(continente);
+
+    if (continente) {
+      this.paisSeleccionado.set(null);
+    }
+  }
+
+  actualizarPlan(valor: string | number | null | undefined): void {
+    this.planSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarTipoContenido(valor: string | number | null | undefined): void {
+    this.tipoContenidoSeleccionado.set(valor ? String(valor) : null);
+  }
+
+  actualizarPrioridadMercado(valor: string | number | null | undefined): void {
+    this.prioridadMercadoSeleccionada.set(valor ? String(valor) : null);
   }
 
   actualizarMetrica(valor: string | number | undefined): void {
@@ -251,10 +342,46 @@ export class MetasPage implements OnInit {
     }
   }
 
-  restablecerMercadosCriticos(): void {
-    this.paisesSeleccionados.set(
-      this.topPaisesCriticos().map((pais) => pais.pais)
-    );
+  obtenerMercadoCritico(): CumplimientoMeta | null {
+    return this.cumplimiento()[0] ?? null;
+  }
+
+  obtenerMejorMercado(): CumplimientoMeta | null {
+    const datos = [...this.cumplimiento()];
+
+    if (datos.length === 0) {
+      return null;
+    }
+
+    return datos.sort(
+      (a, b) =>
+        this.promedioCumplimiento(b) - this.promedioCumplimiento(a)
+    )[0];
+  }
+
+  promedioCumplimiento(item: CumplimientoMeta): number {
+    return (
+      item.porcentajeCumplimientoVisualizaciones +
+      item.porcentajeCumplimientoHoras
+    ) / 2;
+  }
+
+  obtenerColorEstado(estado: string): string {
+    const estadoNormalizado = (estado ?? '').toUpperCase();
+
+    if (estadoNormalizado === 'ALTO') {
+      return 'success';
+    }
+
+    if (estadoNormalizado === 'MEDIO') {
+      return 'warning';
+    }
+
+    if (estadoNormalizado === 'BAJO') {
+      return 'danger';
+    }
+
+    return 'medium';
   }
 
   formatearNumero(valor: number): string {
@@ -265,87 +392,59 @@ export class MetasPage implements OnInit {
     return this.formatoDecimal.format(valor);
   }
 
-  obtenerColorEstado(estado: EstadoCumplimiento): string {
-    if (estado === 'ALTO') {
-      return 'success';
-    }
+  hayFiltrosAplicados(): boolean {
+    const filtros = this.filtrosAplicados();
 
-    if (estado === 'MEDIO') {
-      return 'warning';
-    }
-
-    if (estado === 'BAJO') {
-      return 'danger';
-    }
-
-    return 'medium';
+    return Boolean(
+      filtros.anio ||
+      filtros.pais ||
+      filtros.continente ||
+      filtros.plan ||
+      filtros.tipoContenido ||
+      filtros.prioridadMercado
+    );
   }
 
-  obtenerVarianteEstado(estado: EstadoCumplimiento): 'normal' | 'positivo' | 'advertencia' | 'riesgo' {
-    if (estado === 'ALTO') {
-      return 'positivo';
+  obtenerResumenFiltros(): string {
+    const filtros = this.filtrosAplicados();
+    const activos: string[] = [];
+
+    if (filtros.anio) {
+      activos.push(`Año ${filtros.anio}`);
     }
 
-    if (estado === 'MEDIO') {
-      return 'advertencia';
+    if (filtros.pais) {
+      activos.push(`País ${filtros.pais}`);
     }
 
-    if (estado === 'BAJO') {
-      return 'riesgo';
+    if (filtros.continente) {
+      activos.push(`Continente ${filtros.continente}`);
     }
 
-    return 'normal';
-  }
-
-  obtenerPorcentajeBarra(pais: CumplimientoMeta): number {
-    const porcentaje = pais.porcentajeCumplimientoVisualizaciones;
-
-    if (porcentaje <= 0) {
-      return 2;
+    if (filtros.plan) {
+      activos.push(`Plan ${filtros.plan}`);
     }
 
-    return Math.min(porcentaje, 100);
+    if (filtros.tipoContenido) {
+      activos.push(`Tipo ${filtros.tipoContenido}`);
+    }
+
+    if (filtros.prioridadMercado) {
+      activos.push(`Prioridad ${filtros.prioridadMercado}`);
+    }
+
+    return activos.length > 0 ? activos.join(' · ') : 'Panorama general sin filtros';
   }
 
   obtenerLecturaEjecutiva(): string {
     const mercadoCritico = this.obtenerMercadoCritico();
     const mejorMercado = this.obtenerMejorMercado();
+    const contexto = this.obtenerResumenFiltros().toLowerCase();
 
     if (!mercadoCritico || !mejorMercado) {
       return 'No hay información suficiente para generar una lectura ejecutiva de metas.';
     }
 
-    return `El mercado con mayor brecha frente a metas es ${mercadoCritico.pais}, con ${this.formatearDecimal(mercadoCritico.porcentajeCumplimientoVisualizaciones)}% de cumplimiento en visualizaciones. Por otro lado, ${mejorMercado.pais} muestra el mejor desempeño relativo. Esto permite priorizar acciones comerciales en mercados con bajo cumplimiento.`;
-  }
-
-  private establecerSeleccionInicial(respuesta: ResumenCumplimientoMetas): void {
-    const paisesCriticos = [...respuesta.cumplimientoPorPais]
-      .sort(
-        (a, b) =>
-          a.porcentajeCumplimientoVisualizaciones -
-          b.porcentajeCumplimientoVisualizaciones
-      )
-      .slice(0, 5)
-      .map((pais) => pais.pais);
-
-    this.paisesSeleccionados.set(paisesCriticos);
-  }
-
-  private obtenerPaisesParaComparacion(datos: ResumenCumplimientoMetas): CumplimientoMeta[] {
-    const seleccionados = this.paisesSeleccionados();
-
-    if (seleccionados.length === 0) {
-      return this.topPaisesCriticos();
-    }
-
-    return datos.cumplimientoPorPais.filter((pais) =>
-      seleccionados.includes(pais.pais)
-    );
-  }
-
-  private contarPorEstado(estado: EstadoCumplimiento): number {
-    return this.resumen()?.cumplimientoPorPais.filter(
-      (pais) => pais.estado === estado
-    ).length ?? 0;
+    return `Bajo el contexto de ${contexto}, ${mercadoCritico.pais} presenta la mayor brecha frente a las metas, mientras que ${mejorMercado.pais} muestra el mejor desempeño relativo. Esta vista permite priorizar acciones en mercados con bajo cumplimiento.`;
   }
 }

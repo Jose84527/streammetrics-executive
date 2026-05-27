@@ -3,6 +3,7 @@ package com.jose.streammetrics.service;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import com.jose.streammetrics.dto.FiltroKpiRequest;
 import com.jose.streammetrics.dto.ResumenCumplimientoMetasDto;
 import com.jose.streammetrics.repository.MetaRepository;
 
@@ -15,10 +16,13 @@ public class MetaService {
         this.metaRepository = metaRepository;
     }
 
-    @Cacheable("metasCumplimiento")
-    public ResumenCumplimientoMetasDto obtenerCumplimientoMetas() {
+    @Cacheable(
+            value = "metasCumplimiento",
+            key = "{#filtros.anio(), #filtros.pais(), #filtros.continente(), #filtros.plan(), #filtros.tipoContenido(), #filtros.prioridadMercado()}"
+    )
+    public ResumenCumplimientoMetasDto obtenerCumplimientoMetas(FiltroKpiRequest filtros) {
         return new ResumenCumplimientoMetasDto(
-                metaRepository.obtenerCumplimientoPorPais()
+                metaRepository.obtenerCumplimientoPorPais(filtros)
         );
     }
 }

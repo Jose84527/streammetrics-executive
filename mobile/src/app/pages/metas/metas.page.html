@@ -2,10 +2,167 @@
 
 <ion-content class="ion-padding">
   <app-section-header
-    etiqueta="Objetivos de negocio"
+    etiqueta="Metas"
     titulo="Cumplimiento de metas"
-    descripcion="Compara los resultados reales contra los objetivos esperados por mercado para detectar brechas estratégicas."
+    descripcion="Evalúa el avance real frente a las metas de visualizaciones y horas vistas. Usa filtros para analizar mercados, años, planes, tipos de contenido o prioridad de mercado."
   ></app-section-header>
+
+  <ion-card class="filtros-card">
+    <ion-accordion-group>
+      <ion-accordion value="filtros-metas">
+        <ion-item slot="header" lines="none" class="filtros-header-item">
+          <ion-label>
+            <div class="filtros-header-title">
+              <h2>Filtros de análisis</h2>
+
+              <ion-badge *ngIf="hayFiltrosAplicados()" color="primary">
+                Activos
+              </ion-badge>
+            </div>
+
+            <p>{{ obtenerResumenFiltros() }}</p>
+          </ion-label>
+        </ion-item>
+
+        <div slot="content" class="filtros-content">
+          <p class="descripcion-bloque">
+            Selecciona uno o varios criterios y presiona Aplicar filtros para recalcular el cumplimiento de metas.
+          </p>
+
+          <p class="nota-filtro">
+            Nota: el filtro geográfico trabaja por país o por continente. Si seleccionas uno, el otro se limpia automáticamente.
+          </p>
+
+          <div *ngIf="cargandoFiltros()" class="estado compacto">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando opciones de filtros...</p>
+          </div>
+
+          <ng-container *ngIf="opcionesFiltro() as opciones">
+            <section class="filtros-grid">
+              <ion-item>
+                <ion-label position="stacked">Año</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="anioSeleccionado()"
+                  (ionChange)="actualizarAnio($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let anio of opciones.anios"
+                    [value]="anio"
+                  >
+                    {{ anio }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">País</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="paisSeleccionado()"
+                  (ionChange)="actualizarPais($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let pais of opciones.paises"
+                    [value]="pais"
+                  >
+                    {{ pais }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Continente</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="continenteSeleccionado()"
+                  (ionChange)="actualizarContinente($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let continente of opciones.continentes"
+                    [value]="continente"
+                  >
+                    {{ continente }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Plan</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="planSeleccionado()"
+                  (ionChange)="actualizarPlan($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let plan of opciones.planes"
+                    [value]="plan"
+                  >
+                    {{ plan }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Tipo de contenido</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todos"
+                  [value]="tipoContenidoSeleccionado()"
+                  (ionChange)="actualizarTipoContenido($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todos</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let tipo of opciones.tiposContenido"
+                    [value]="tipo"
+                  >
+                    {{ tipo }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+
+              <ion-item>
+                <ion-label position="stacked">Prioridad de mercado</ion-label>
+                <ion-select
+                  interface="popover"
+                  placeholder="Todas"
+                  [value]="prioridadMercadoSeleccionada()"
+                  (ionChange)="actualizarPrioridadMercado($event.detail.value)"
+                >
+                  <ion-select-option [value]="null">Todas</ion-select-option>
+                  <ion-select-option
+                    *ngFor="let prioridad of opciones.prioridadesMercado"
+                    [value]="prioridad"
+                  >
+                    {{ prioridad }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </section>
+
+            <div class="acciones-filtros">
+              <ion-button fill="outline" size="small" (click)="limpiarFiltros()">
+                Limpiar filtros
+              </ion-button>
+
+              <ion-button size="small" (click)="aplicarFiltros()">
+                Aplicar filtros
+              </ion-button>
+            </div>
+          </ng-container>
+        </div>
+      </ion-accordion>
+    </ion-accordion-group>
+  </ion-card>
 
   <div class="acciones">
     <ion-button size="small" (click)="cargarMetas()">
@@ -15,7 +172,7 @@
 
   <div *ngIf="cargando()" class="estado">
     <ion-spinner name="crescent"></ion-spinner>
-    <p>Cargando cumplimiento de metas...</p>
+    <p>Calculando cumplimiento de metas...</p>
   </div>
 
   <ion-text color="danger" *ngIf="error()">
@@ -25,56 +182,32 @@
   <ng-container *ngIf="resumen() as datos">
     <section class="resumen-grid">
       <app-kpi-card
-        *ngIf="obtenerMercadoCritico() as mercado"
-        titulo="Mercado crítico"
-        [valor]="mercado.pais"
-        [detalle]="formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) + '% de cumplimiento en visualizaciones'"
-        variante="riesgo"
+  *ngIf="obtenerMercadoCritico() as mercado"
+  titulo="Mercado crítico"
+  [valor]="mercado.pais"
+  [detalle]="formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) + '% cumplimiento en visualizaciones'"
+  variante="riesgo"
+></app-kpi-card>
+
+      <app-kpi-card
+        titulo="Cumplimiento global"
+        [valor]="formatearDecimal(cumplimientoGlobalVisualizaciones()) + '%'"
+        detalle="Visualizaciones reales contra meta"
+        variante="normal"
       ></app-kpi-card>
 
       <app-kpi-card
-        *ngIf="obtenerMejorMercado() as mercado"
-        titulo="Mejor cumplimiento"
-        [valor]="mercado.pais"
-        [detalle]="formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) + '% de cumplimiento en visualizaciones'"
-        [variante]="obtenerVarianteEstado(mercado.estado)"
-      ></app-kpi-card>
-
-      <app-kpi-card
-        titulo="Mercados en bajo cumplimiento"
-        [valor]="mercadosBajo()"
-        detalle="Países clasificados con estado BAJO"
-        variante="riesgo"
-      ></app-kpi-card>
-    </section>
-
-    <section class="estado-grid">
-      <app-kpi-card
-        titulo="Cumplimiento alto"
-        [valor]="mercadosAlto()"
-        detalle="Mercados con desempeño favorable"
-        variante="positivo"
-      ></app-kpi-card>
-
-      <app-kpi-card
-        titulo="Cumplimiento medio"
-        [valor]="mercadosMedio()"
-        detalle="Mercados que requieren seguimiento"
-        variante="advertencia"
-      ></app-kpi-card>
-
-      <app-kpi-card
-        titulo="Cumplimiento bajo"
-        [valor]="mercadosBajo()"
-        detalle="Mercados con brecha significativa"
-        variante="riesgo"
+        titulo="Cumplimiento en horas"
+        [valor]="formatearDecimal(cumplimientoGlobalHoras()) + '%'"
+        detalle="Horas reales contra meta"
+        variante="normal"
       ></app-kpi-card>
     </section>
 
     <app-insight-card
       titulo="Lectura ejecutiva"
       [descripcion]="obtenerLecturaEjecutiva()"
-      nivel="advertencia"
+      nivel="informativo"
     ></app-insight-card>
 
     <ion-card class="ranking-card">
@@ -84,35 +217,35 @@
 
       <ion-card-content>
         <p class="descripcion-bloque">
-          Ranking de países ordenados desde el menor cumplimiento hacia el mayor. Esta vista ayuda a priorizar acciones comerciales.
+          Países con menor cumplimiento frente a metas dentro del contexto seleccionado.
         </p>
 
         <ion-list>
           <ion-item
-            *ngFor="let pais of topPaisesCriticos(); let i = index"
+            *ngFor="let mercado of mercadosCriticos(); let i = index"
             class="ranking-item"
           >
-            <ion-badge slot="start" [color]="obtenerColorEstado(pais.estado)">
-              {{ i + 1 }}
+            <ion-badge slot="start" [color]="obtenerColorEstado(mercado.estado)">
+              {{ mercado.estado }}
             </ion-badge>
 
             <ion-label>
               <div class="fila-ranking">
-                <h2>{{ pais.pais }}</h2>
-                <strong>{{ formatearDecimal(pais.porcentajeCumplimientoVisualizaciones) }}%</strong>
+                <h2>{{ i + 1 }}. {{ mercado.pais }}</h2>
+                <strong>{{ formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) }}%</strong>
               </div>
 
-              <div class="barra-progreso" [class]="pais.estado.toLowerCase()">
+              <div class="barra-progreso">
                 <div
                   class="barra-relleno"
-                  [style.width.%]="obtenerPorcentajeBarra(pais)"
+                  [style.width.%]="mercado.porcentajeCumplimientoVisualizaciones > 100 ? 100 : mercado.porcentajeCumplimientoVisualizaciones"
                 ></div>
               </div>
 
               <p>
-                {{ formatearNumero(pais.visualizacionesReales) }} reales vs
-                {{ formatearNumero(pais.metaVisualizaciones) }} meta ·
-                Estado {{ pais.estado }}
+                {{ formatearNumero(mercado.visualizacionesReales) }} reales /
+                {{ formatearNumero(mercado.metaVisualizaciones) }} meta ·
+                {{ formatearDecimal(mercado.porcentajeCumplimientoHoras) }}% en horas
               </p>
             </ion-label>
           </ion-item>
@@ -128,7 +261,7 @@
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Distribución de mercados según su nivel de cumplimiento frente a las metas.
+            Agrupación de mercados según su nivel de cumplimiento.
           </p>
 
           <div class="chart-wrapper dona">
@@ -144,12 +277,12 @@
 
       <ion-card class="chart-card">
         <ion-card-header>
-          <ion-card-title>Real vs meta por país</ion-card-title>
+          <ion-card-title>Comparativa de cumplimiento</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
           <p class="descripcion-bloque">
-            Selecciona uno o varios países para comparar el resultado real contra la meta establecida.
+            Cambia la métrica para comparar cumplimiento por visualizaciones u horas vistas.
           </p>
 
           <ion-segment
@@ -161,46 +294,15 @@
             </ion-segment-button>
 
             <ion-segment-button value="horas">
-              <ion-label>Horas vistas</ion-label>
+              <ion-label>Horas</ion-label>
             </ion-segment-button>
           </ion-segment>
-
-          <ion-select
-            label="Países"
-            label-placement="stacked"
-            interface="popover"
-            multiple="true"
-            [value]="paisesSeleccionados()"
-            (ionChange)="actualizarSeleccionPaises($event.detail.value)"
-          >
-            <ion-select-option
-              *ngFor="let pais of datos.cumplimientoPorPais"
-              [value]="pais.pais"
-            >
-              {{ pais.pais }}
-            </ion-select-option>
-          </ion-select>
-
-          <div class="chips-seleccion">
-            <ion-chip
-              *ngFor="let pais of paisesSeleccionados()"
-              color="primary"
-            >
-              {{ pais }}
-            </ion-chip>
-          </div>
-
-          <div class="acciones-grafica">
-            <ion-button size="small" fill="outline" (click)="restablecerMercadosCriticos()">
-              Restablecer críticos
-            </ion-button>
-          </div>
 
           <div class="chart-wrapper barras">
             <canvas
               baseChart
               [type]="'bar'"
-              [data]="datosGraficaComparativa()"
+              [data]="datosGraficaCumplimiento()"
               [options]="opcionesBarras"
             ></canvas>
           </div>
@@ -210,31 +312,34 @@
 
     <ion-card class="ranking-card">
       <ion-card-header>
-        <ion-card-title>Resumen completo por país</ion-card-title>
+        <ion-card-title>Detalle completo de cumplimiento</ion-card-title>
       </ion-card-header>
 
       <ion-card-content>
         <p class="descripcion-bloque">
-          Vista resumida de todos los mercados con metas cargadas en el análisis.
+          Lista completa de mercados con metas disponibles para el contexto seleccionado.
         </p>
 
         <ion-list>
           <ion-item
-            *ngFor="let pais of paisesOrdenadosPorCumplimiento()"
+            *ngFor="let mercado of cumplimiento()"
             class="ranking-item compacto"
           >
-            <ion-badge slot="start" [color]="obtenerColorEstado(pais.estado)">
-              {{ pais.estado }}
+            <ion-badge slot="start" [color]="obtenerColorEstado(mercado.estado)">
+              {{ mercado.estado }}
             </ion-badge>
 
             <ion-label>
               <div class="fila-ranking">
-                <h2>{{ pais.pais }}</h2>
-                <strong>{{ formatearDecimal(pais.porcentajeCumplimientoVisualizaciones) }}%</strong>
+                <h2>{{ mercado.pais }}</h2>
+                <strong>{{ formatearDecimal(mercado.porcentajeCumplimientoVisualizaciones) }}%</strong>
               </div>
 
               <p>
-                Horas: {{ formatearDecimal(pais.porcentajeCumplimientoHoras) }}%
+                Visualizaciones: {{ formatearNumero(mercado.visualizacionesReales) }} /
+                {{ formatearNumero(mercado.metaVisualizaciones) }} ·
+                Horas: {{ formatearDecimal(mercado.horasReales) }} /
+                {{ formatearDecimal(mercado.metaHoras) }}
               </p>
             </ion-label>
           </ion-item>

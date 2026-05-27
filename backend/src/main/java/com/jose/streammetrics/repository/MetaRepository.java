@@ -1,11 +1,14 @@
 package com.jose.streammetrics.repository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import com.jose.streammetrics.dto.CumplimientoMetaDto;
+import com.jose.streammetrics.dto.FiltroKpiRequest;
 
 @Repository
 public class MetaRepository {
@@ -16,7 +19,9 @@ public class MetaRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<CumplimientoMetaDto> obtenerCumplimientoPorPais() {
+    public List<CumplimientoMetaDto> obtenerCumplimientoPorPais(FiltroKpiRequest filtros) {
+        ConsultaFiltrada consulta = construirConsultaBase(filtros);
+
         String sql = """
                 WITH reales AS (
                     SELECT
@@ -24,8 +29,7 @@ public class MetaRepository {
                         COALESCE(SUM(visualizacion_real), 0) AS visualizaciones_reales,
                         COALESCE(SUM(horas_vistas), 0) AS horas_reales
                     FROM analisis_streaming_kpis
-                    WHERE pais_usuario IS NOT NULL
-                      AND pais_usuario <> ''
+                    %s
                     GROUP BY pais_usuario
                 ),
                 metas_unicas AS (
@@ -35,8 +39,7 @@ public class MetaRepository {
                         meta_visualizaciones,
                         meta_horas_vistas
                     FROM analisis_streaming_kpis
-                    WHERE pais_usuario IS NOT NULL
-                      AND pais_usuario <> ''
+                    %s
                       AND id_meta IS NOT NULL
                 ),
                 metas AS (
@@ -86,17 +89,94 @@ public class MetaRepository {
                    OR meta_horas > 0
                 ORDER BY porcentaje_cumplimiento_visualizaciones ASC,
                          porcentaje_cumplimiento_horas ASC
-                """;
+                """.formatted(consulta.where(), consulta.where());
 
-        return jdbcTemplate.query(sql, (resultado, numeroFila) -> new CumplimientoMetaDto(
-                resultado.getString("pais"),
-                resultado.getLong("visualizaciones_reales"),
-                resultado.getLong("meta_visualizaciones"),
-                resultado.getBigDecimal("porcentaje_cumplimiento_visualizaciones"),
-                resultado.getBigDecimal("horas_reales"),
-                resultado.getBigDecimal("meta_horas"),
-                resultado.getBigDecimal("porcentaje_cumplimiento_horas"),
-                resultado.getString("estado")
-        ));
+        List<Object> parametros = new ArrayList<>();
+        parametros.addAll(consulta.parametros());
+        parametros.addAll(consulta.parametros());
+
+        return jdbcTemplate.query(
+                sql,
+                parametros.toArray(),
+                (resultado, numeroFila) -> new CumplimientoMetaDto(
+                        resultado.getString("pais"),
+                        resultado.getLong("visualizaciones_reales"),
+                        resultado.getLong("meta_visualizaciones"),
+                        resultado.getBigDecimal("porcentaje_cumplimiento_visualizaciones"),
+                        resultado.getBigDecimal("horas_reales"),
+                        resultado.getBigDecimal("meta_horas"),
+                        resultado.getBigDecimal("porcentaje_cumplimiento_horas"),
+                        resultado.getString("estado")
+                )
+        );
+    }
+
+    private ConsultaFiltrada construirConsultaBase(FiltroKpiRequest filtros) {
+        StringBuilder where = new StringBuilder("""
+                WHERE pais_usuario IS NOT NULL
+                  AND pais_usuario <> ''
+                """);
+
+        List<Object> parametros = new ArrayList<>();
+
+        if (filtros == null) {
+            return new ConsultaFiltrada(where.toString(), parametros);
+        }
+
+        if (filtros.anio() != null) {
+            where.append("""
+                    
+                      AND anio = ?
+                    """);
+            parametros.add(filtros.anio());
+        }
+
+        if (StringUtils.hasText(filtros.pais())) {
+            where.append("""
+                    
+                      AND pais_usuario = ?
+                    """);
+            parametros.add(filtros.pais().trim());
+        }
+
+        if (StringUtils.hasText(filtros.continente())) {
+            where.append("""
+                    
+                      AND continente_usuario = ?
+                    """);
+            parametros.add(filtros.continente().trim());
+        }
+
+        if (StringUtils.hasText(filtros.plan())) {
+            where.append("""
+                    
+                      AND nombre_plan = ?
+                    """);
+            parametros.add(filtros.plan().trim());
+        }
+
+        if (StringUtils.hasText(filtros.tipoContenido())) {
+            where.append("""
+                    
+                      AND tipo_contenido = ?
+                    """);
+            parametros.add(filtros.tipoContenido().trim());
+        }
+
+        if (StringUtils.hasText(filtros.prioridadMercado())) {
+            where.append("""
+                    
+                      AND prioridad_mercado = ?
+                    """);
+            parametros.add(filtros.prioridadMercado().trim());
+        }
+
+        return new ConsultaFiltrada(where.toString(), parametros);
+    }
+
+    private record ConsultaFiltrada(
+            String where,
+            List<Object> parametros
+    ) {
     }
 }
